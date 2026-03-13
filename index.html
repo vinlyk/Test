@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Football Stream Finder – Man United Edition</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚽</span>
+        <div>
+          <h1>Football Stream Finder</h1>
+          <p class="tagline">Manchester United &amp; All Live Football</p>
+        </div>
+      </div>
+      <div class="live-badge">LIVE</div>
+    </div>
+  </header>
+
+  <!-- Search & Filters -->
+  <section class="controls">
+    <input
+      id="searchInput"
+      type="text"
+      placeholder="Search sites or match names…"
+      oninput="applyFilters()"
+    />
+    <div class="filter-buttons">
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" data-filter="manutd" onclick="setFilter('manutd', this)">🔴 Man United</button>
+      <button class="filter-btn" data-filter="free" onclick="setFilter('free', this)">Free</button>
+      <button class="filter-btn" data-filter="hd" onclick="setFilter('hd', this)">HD</button>
+      <button class="filter-btn" data-filter="no-signup" onclick="setFilter('no-signup', this)">No Sign-up</button>
+    </div>
+  </section>
+
+  <!-- Upcoming Man United Matches Banner -->
+  <section class="matches-section">
+    <h2 class="section-title">🔴 Upcoming Manchester United Matches</h2>
+    <div id="matchCards" class="match-cards"></div>
+  </section>
+
+  <!-- Streaming Sites -->
+  <section class="sites-section">
+    <h2 class="section-title">📺 Free Streaming Sites</h2>
+    <p class="section-note">Always use an ad-blocker and a VPN for safety. Check local broadcast laws.</p>
+    <div id="siteCards" class="site-cards"></div>
+    <p id="noResults" class="no-results" style="display:none;">No results match your search / filter.</p>
+  </section>
+
+  <!-- Legend -->
+  <section class="legend">
+    <h3>Tag Legend</h3>
+    <div class="legend-grid">
+      <span class="tag tag-free">Free</span><span>No payment required</span>
+      <span class="tag tag-hd">HD</span><span>720p+ quality available</span>
+      <span class="tag tag-nosignup">No Sign-up</span><span>Watch without an account</span>
+      <span class="tag tag-manutd">Man United</span><span>Regularly streams Man Utd</span>
+      <span class="tag tag-vpn">VPN Needed</span><span>May require VPN outside certain regions</span>
+      <span class="tag tag-adblocker">Ad-Blocker</span><span>Recommend using an ad-blocker</span>
+    </div>
+  </section>
+
+  <!-- Disclaimer -->
+  <footer>
+    <p>
+      ⚠️ <strong>Disclaimer:</strong> This tool is for informational purposes only.
+      Always verify that streaming a match is legal in your country.
+      Some sites listed are free, ad-supported, or require a free account.
+      The developers of this app do not host any streams.
+    </p>
+    <p class="footer-copy">© 2026 Football Stream Finder</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
