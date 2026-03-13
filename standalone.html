@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Football Stream Finder – Man United Edition</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red: #da291c; --dark: #1a1a2e; --darker: #16213e; --card: #0f3460;
+      --accent: #e94560; --text: #e0e0e0; --muted: #9aabbc;
+      --green: #2ecc71; --gold: #f39c12; --radius: 12px;
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--dark); color: var(--text); min-height: 100vh; line-height: 1.55; }
+
+    header { background: linear-gradient(135deg, #1a0000 0%, var(--red) 60%, #8b0000 100%); padding: 1.2rem 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: .9rem; }
+    .logo-icon { font-size: 2.4rem; }
+    .logo h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
+    .tagline { font-size: .85rem; color: rgba(255,255,255,.75); }
+    .live-badge { background: var(--green); color: #fff; font-weight: 800; font-size: .75rem; padding: .3rem .7rem; border-radius: 20px; letter-spacing: 1.5px; animation: pulse 1.8s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+    .controls { max-width: 1100px; margin: 1.6rem auto 0; padding: 0 1.2rem; display: flex; flex-direction: column; gap: .9rem; }
+    #searchInput { width: 100%; padding: .8rem 1.2rem; border-radius: var(--radius); border: 2px solid #334; background: var(--darker); color: var(--text); font-size: 1rem; outline: none; transition: border-color .2s; }
+    #searchInput:focus { border-color: var(--accent); }
+    .filter-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .filter-btn { padding: .45rem 1rem; border-radius: 20px; border: 2px solid #334; background: transparent; color: var(--muted); font-size: .85rem; cursor: pointer; transition: all .2s; }
+    .filter-btn:hover { border-color: var(--accent); color: #fff; }
+    .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+    .section-title { font-size: 1.25rem; font-weight: 700; margin-bottom: .9rem; color: #fff; }
+    .section-note { font-size: .82rem; color: var(--muted); margin-bottom: 1rem; }
+    .matches-section, .sites-section, .legend { max-width: 1100px; margin: 2rem auto 0; padding: 0 1.2rem; }
+
+    .match-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .match-card { background: linear-gradient(135deg, #1c0a0a, #3d0000); border: 1px solid rgba(218,41,28,.35); border-radius: var(--radius); padding: 1rem 1.2rem; transition: transform .2s, box-shadow .2s; }
+    .match-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(218,41,28,.3); }
+    .match-competition { font-size: .72rem; color: var(--gold); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: .3rem; }
+    .match-teams { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: .35rem; }
+    .match-meta { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+    .match-date { font-size: .8rem; color: var(--muted); }
+    .match-status { font-size: .72rem; padding: .2rem .55rem; border-radius: 12px; font-weight: 700; }
+    .status-live { background: var(--green); color: #fff; animation: pulse 1.5s infinite; }
+    .status-soon { background: var(--gold); color: #1a1a1a; }
+    .status-upcoming { background: #334; color: var(--text); }
+
+    .site-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 1.1rem; }
+    .site-card { background: var(--card); border: 1px solid rgba(255,255,255,.08); border-radius: var(--radius); padding: 1.2rem; display: flex; flex-direction: column; gap: .7rem; transition: transform .2s, box-shadow .2s; }
+    .site-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.4); }
+    .site-header { display: flex; align-items: center; gap: .8rem; }
+    .site-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+    .site-name { font-size: 1.05rem; font-weight: 700; color: #fff; }
+    .site-url { font-size: .78rem; color: var(--muted); margin-top: .05rem; }
+    .site-desc { font-size: .85rem; color: var(--muted); }
+    .site-tags { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .tag { font-size: .72rem; font-weight: 700; padding: .2rem .55rem; border-radius: 12px; }
+    .tag-free     { background: rgba(46,204,113,.18); color: #2ecc71; border: 1px solid rgba(46,204,113,.4); }
+    .tag-hd       { background: rgba(52,152,219,.18); color: #3498db; border: 1px solid rgba(52,152,219,.4); }
+    .tag-nosignup { background: rgba(155,89,182,.18); color: #9b59b6; border: 1px solid rgba(155,89,182,.4); }
+    .tag-manutd   { background: rgba(218,41,28,.22);  color: #ff6b6b; border: 1px solid rgba(218,41,28,.5); }
+    .tag-vpn      { background: rgba(243,156,18,.18); color: var(--gold); border: 1px solid rgba(243,156,18,.4); }
+    .tag-adblocker{ background: rgba(231,76,60,.18);  color: #e74c3c; border: 1px solid rgba(231,76,60,.4); }
+    .tag-account  { background: rgba(52,73,94,.35);   color: #bdc3c7; border: 1px solid rgba(52,73,94,.7); }
+    .site-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
+    .reliability { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: .3rem; }
+    .stars { color: var(--gold); letter-spacing: 1px; }
+    .visit-btn { padding: .4rem .9rem; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: .82rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: background .2s; }
+    .visit-btn:hover { background: #c0392b; }
+
+    .legend { margin-bottom: 2rem; }
+    .legend h3 { font-size: 1rem; margin-bottom: .7rem; color: var(--muted); }
+    .legend-grid { display: grid; grid-template-columns: auto 1fr; gap: .5rem 1rem; align-items: center; max-width: 480px; font-size: .83rem; color: var(--muted); }
+    .no-results { text-align: center; color: var(--muted); padding: 2rem 0; font-size: .95rem; }
+
+    footer { background: var(--darker); border-top: 1px solid #223; padding: 1.5rem; margin-top: 2.5rem; font-size: .8rem; color: var(--muted); text-align: center; line-height: 1.7; }
+    footer strong { color: var(--gold); }
+    .footer-copy { margin-top: .5rem; opacity: .5; }
+
+    @media (max-width: 600px) {
+      .logo h1 { font-size: 1.2rem; }
+      .site-cards, .match-cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">⚽</span>
+      <div>
+        <h1>Football Stream Finder</h1>
+        <p class="tagline">Manchester United &amp; All Live Football</p>
+      </div>
+    </div>
+    <div class="live-badge">LIVE</div>
+  </div>
+</header>
+
+<section class="controls">
+  <input id="searchInput" type="text" placeholder="Search sites or match names…" oninput="applyFilters()" />
+  <div class="filter-buttons">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('manutd', this)">🔴 Man United</button>
+    <button class="filter-btn" onclick="setFilter('free', this)">Free</button>
+    <button class="filter-btn" onclick="setFilter('hd', this)">HD</button>
+    <button class="filter-btn" onclick="setFilter('no-signup', this)">No Sign-up</button>
+  </div>
+</section>
+
+<section class="matches-section">
+  <h2 class="section-title">🔴 Upcoming Manchester United Matches</h2>
+  <div id="matchCards" class="match-cards"></div>
+</section>
+
+<section class="sites-section">
+  <h2 class="section-title">📺 Free Streaming Sites</h2>
+  <p class="section-note">Always use an ad-blocker and a VPN for safety. Check local broadcast laws.</p>
+  <div id="siteCards" class="site-cards"></div>
+  <p id="noResults" class="no-results" style="display:none;">No results match your search / filter.</p>
+</section>
+
+<section class="legend">
+  <h3>Tag Legend</h3>
+  <div class="legend-grid">
+    <span class="tag tag-free">Free</span><span>No payment required</span>
+    <span class="tag tag-hd">HD</span><span>720p+ quality available</span>
+    <span class="tag tag-nosignup">No Sign-up</span><span>Watch without an account</span>
+    <span class="tag tag-manutd">Man United</span><span>Regularly streams Man Utd</span>
+    <span class="tag tag-vpn">VPN Needed</span><span>May require VPN outside certain regions</span>
+    <span class="tag tag-adblocker">Ad-Blocker</span><span>Recommend using an ad-blocker</span>
+  </div>
+</section>
+
+<footer>
+  <p>⚠️ <strong>Disclaimer:</strong> This tool is for informational purposes only. Always verify that streaming a match is legal in your country. The developers do not host any streams.</p>
+  <p class="footer-copy">© 2026 Football Stream Finder</p>
+</footer>
+
+<script>
+const manUtdMatches = [
+  { competition:"Premier League",    home:"Manchester United", away:"Arsenal",          date:"2026-03-15", time:"16:30", status:"upcoming" },
+  { competition:"UEFA Europa League",home:"Manchester United", away:"Athletic Bilbao",  date:"2026-03-19", time:"20:00", status:"upcoming" },
+  { competition:"FA Cup",            home:"Fulham",            away:"Manchester United", date:"2026-03-22", time:"14:00", status:"upcoming" },
+  { competition:"Premier League",    home:"Tottenham Hotspur", away:"Manchester United", date:"2026-04-05", time:"12:30", status:"upcoming" },
+  { competition:"UEFA Europa League",home:"Athletic Bilbao",   away:"Manchester United", date:"2026-04-09", time:"20:00", status:"upcoming" },
+  { competition:"Premier League",    home:"Manchester United", away:"Chelsea",           date:"2026-04-19", time:"16:30", status:"upcoming" },
+];
+
+const streamingSites = [
+  { name:"BBC iPlayer",            url:"bbc.co.uk/iplayer",         icon:"📺", iconBg:"#b5121b", desc:"Official UK broadcaster. Streams FA Cup, selected Premier League highlights, and some international fixtures free with a UK TV Licence / free account. VPN required outside the UK.", tags:["free","hd","no-signup","manutd","vpn"], reliability:5 },
+  { name:"ITV X",                  url:"itvx.com",                  icon:"🎬", iconBg:"#003087", desc:"Free UK streaming. Airs UEFA Europa League matches live, including Man United's European campaigns. Requires a free account. Use VPN outside the UK.", tags:["free","hd","manutd","vpn","account"], reliability:5 },
+  { name:"Channel 4 / All 4",      url:"channel4.com/stream",       icon:"4️⃣", iconBg:"#1a1a1a", desc:"UK free-to-air broadcaster streaming occasional top-flight football and highlight shows. Free with an account.", tags:["free","hd","vpn","account"], reliability:4 },
+  { name:"TUDN (Univision)",        url:"tudn.com",                  icon:"🌎", iconBg:"#005eb8", desc:"US-based Spanish-language sports network. Streams selected Premier League and Champions League matches free with a cable TV provider login or free trial.", tags:["free","hd","manutd","account"], reliability:4 },
+  { name:"Pluto TV",               url:"pluto.tv",                  icon:"🪐", iconBg:"#2c2c5e", desc:"Completely free, no-sign-up streaming service with dedicated sports channels. Airs football highlights and some live matches.", tags:["free","no-signup","manutd"], reliability:3 },
+  { name:"Tubi TV",                url:"tubitv.com",                icon:"📡", iconBg:"#fa4b22", desc:"Free ad-supported VOD and some live sports. Occasional football content including Premier League replays.", tags:["free","no-signup","adblocker"], reliability:3 },
+  { name:"Peacock Free Tier",      url:"peacocktv.com",             icon:"🦚", iconBg:"#00205b", desc:"NBC's streaming platform. Free tier includes some Premier League matches. Frequently shows Manchester United games on the free plan.", tags:["free","hd","manutd","account"], reliability:4 },
+  { name:"DAZN Free",              url:"dazn.com",                  icon:"🎯", iconBg:"#f5d100", desc:"Sports streaming giant. Offers a free tier or free trial in select regions (Germany, Canada, Japan). Streams Champions League and Premier League.", tags:["free","hd","manutd","account"], reliability:4 },
+  { name:"LiveSoccerTV",           url:"livesoccertv.com",          icon:"🔍", iconBg:"#2d6a4f", desc:"Official schedule aggregator. Shows where every match is streaming legally (free & paid) worldwide, per country.", tags:["free","no-signup","manutd"], reliability:5 },
+  { name:"SoccerStreams (Reddit)", url:"reddit.com/r/soccerstreams",icon:"👾", iconBg:"#ff4500", desc:"Reddit community that compiles links to free streams before each match. Covers all Man United games extensively.", tags:["free","no-signup","manutd","adblocker"], reliability:3 },
+  { name:"Cricfree",               url:"cricfree.sc",               icon:"🏏", iconBg:"#1e3a5f", desc:"Multi-sport free streaming site with dedicated football channels. Streams Premier League, FA Cup, and European matches including Man United.", tags:["free","no-signup","manutd","adblocker"], reliability:3 },
+  { name:"Hesgoal",                url:"hesgoal.tv",                icon:"⚡", iconBg:"#ff6600", desc:"Popular free football streaming aggregator. Provides links to live streams for Premier League and European matches, including Man United.", tags:["free","no-signup","manutd","adblocker"], reliability:3 },
+  { name:"VIPLeague",              url:"vipleague.lc",              icon:"🏆", iconBg:"#1a472a", desc:"Free streaming site covering Premier League, Champions League, Europa League. Consistently provides streams for Man United matches.", tags:["free","no-signup","manutd","adblocker"], reliability:3 },
+  { name:"Streameast",             url:"streameast.live",           icon:"🌐", iconBg:"#0d3b5e", desc:"Clean interface free sports streaming site. Covers Man United games consistently with good HD quality.", tags:["free","no-signup","hd","manutd","adblocker"], reliability:3 },
+  { name:"SportSurge",             url:"sportsurge.net",            icon:"⚽", iconBg:"#2c3e50", desc:"Aggregator that links to free football streams. Simple UI listing all live football, including every Manchester United fixture.", tags:["free","no-signup","manutd","adblocker"], reliability:3 },
+  { name:"Buffstreams",            url:"buffstreams.app",           icon:"📶", iconBg:"#2e4057", desc:"Free sports streaming site with a solid track record for Manchester United Premier League streams.", tags:["free","no-signup","manutd","adblocker"], reliability:3 },
+];
+
+let activeFilter = "all", searchQuery = "";
+
+function formatDate(d, t) {
+  const dt = new Date(`${d}T${t}:00`);
+  return dt.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric"}) + " · " + dt.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+}
+function stars(n) { return "★".repeat(n) + "☆".repeat(5-n); }
+function tagHtml(tag) {
+  const map = { free:["tag-free","Free"], hd:["tag-hd","HD"], "no-signup":["tag-nosignup","No Sign-up"], manutd:["tag-manutd","Man United"], vpn:["tag-vpn","VPN Needed"], adblocker:["tag-adblocker","Ad-Blocker"], account:["tag-account","Free Account"] };
+  const [cls, label] = map[tag] || ["", tag];
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+
+function renderMatches() {
+  document.getElementById("matchCards").innerHTML = manUtdMatches.map(m => `
+    <div class="match-card">
+      <div class="match-competition">${m.competition}</div>
+      <div class="match-teams">${m.home} <span style="color:var(--muted)">vs</span> ${m.away}</div>
+      <div class="match-meta">
+        <span class="match-date">📅 ${formatDate(m.date, m.time)}</span>
+        <span class="match-status status-upcoming">Upcoming</span>
+      </div>
+    </div>`).join("");
+}
+
+function renderSites() {
+  const q = searchQuery.toLowerCase();
+  const filtered = streamingSites.filter(s => {
+    const ms = !q || s.name.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q) || s.url.toLowerCase().includes(q);
+    const mf = activeFilter === "all" ? true : s.tags.includes(activeFilter);
+    return ms && mf;
+  });
+  const noR = document.getElementById("noResults");
+  if (!filtered.length) { document.getElementById("siteCards").innerHTML = ""; noR.style.display = "block"; return; }
+  noR.style.display = "none";
+  document.getElementById("siteCards").innerHTML = filtered.map(s => `
+    <div class="site-card">
+      <div class="site-header">
+        <div class="site-icon" style="background:${s.iconBg}">${s.icon}</div>
+        <div><div class="site-name">${s.name}</div><div class="site-url">🔗 ${s.url}</div></div>
+      </div>
+      <div class="site-desc">${s.desc}</div>
+      <div class="site-tags">${s.tags.map(tagHtml).join("")}</div>
+      <div class="site-footer">
+        <div class="reliability"><span class="stars">${stars(s.reliability)}</span> Reliability</div>
+        <a class="visit-btn" href="https://${s.url}" target="_blank" rel="noopener noreferrer" onclick="return confirm('Visit https://${s.url}?\\n\\nTip: Use an ad-blocker and VPN for safety.')">Visit →</a>
+      </div>
+    </div>`).join("");
+}
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderSites();
+}
+function applyFilters() { searchQuery = document.getElementById("searchInput").value; renderSites(); }
+
+renderMatches(); renderSites();
+</script>
+</body>
+</html>
