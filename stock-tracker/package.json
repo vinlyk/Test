@@ -1,0 +1,27 @@
+{
+  "name": "stock-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && node index.js",
+    "server:dev": "cd server && nodemon index.js",
+    "client": "cd client && npm run dev",
+    "seed": "node server/scripts/seedStocks.js && node server/scripts/seedTrades.js && node server/scripts/seedPPTrades.js",
+    "install:all": "npm install && cd client && npm install"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "p-limit": "^5.0.0",
+    "p-retry": "^6.2.0",
+    "yahoo-finance2": "^2.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
