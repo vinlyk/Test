@@ -126,6 +126,16 @@ async function refreshAllPrices() {
   const pLimit = await getPLimit();
   const limit = pLimit(8);
   const positions = db.prepare('SELECT DISTINCT symbol, position_type FROM positions').all();
+  // Also include watchlist symbols (stock quotes only) for support-level alerts
+  const watchlistSymbols = db.prepare('SELECT DISTINCT symbol FROM watchlist').all();
+  const watchlistSet = new Set(watchlistSymbols.map(w => w.symbol));
+  const positionSet = new Set(positions.map(p => p.symbol));
+  // Add watchlist-only symbols as stock quotes
+  for (const w of watchlistSymbols) {
+    if (!positionSet.has(w.symbol)) {
+      positions.push({ symbol: w.symbol, position_type: 'stock' });
+    }
+  }
   const symbols = positions.map(p => ({ symbol: p.symbol, type: p.position_type }));
 
   const results = await Promise.all(

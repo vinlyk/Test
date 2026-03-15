@@ -15,8 +15,8 @@ const pageTitles = {
   '/':           'Dashboard',
   '/positions':  'Positions',
   '/watchlist':  'Watchlist',
-  '/trades':     'Trade Journal',
-  '/pp-trades':  'PP Trades',
+  '/trades':     'TOS Tracker',
+  '/pp-trades':  'Options Log',
   '/add-trade':  'Add Trade',
   '/account':    'Account',
 };
@@ -57,12 +57,12 @@ export default function App() {
             </Page>
           } />
           <Route path="/trades" element={
-            <Page title="Trade Journal">
+            <Page title="TOS Tracker">
               <TradesPage />
             </Page>
           } />
           <Route path="/pp-trades" element={
-            <Page title="PP Trades">
+            <Page title="Options Log">
               <PPTradesPage />
             </Page>
           } />

@@ -1,6 +1,6 @@
 import usePortfolioStore from '../../store/portfolioStore';
 import { fmtCurrency, fmtPnl, pnlColor } from '../../utils/formatters';
-import PnlChart from './PnlChart';
+import SectorChart from './SectorChart';
 
 const card = {
   background: 'var(--bg3)',
@@ -42,8 +42,8 @@ export default function Dashboard() {
         ))}
       </div>
       <div style={{ ...card, marginBottom: '24px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--muted)' }}>Portfolio Allocation</div>
-        <PnlChart />
+        <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--muted)' }}>Sector Allocation</div>
+        <SectorChart />
       </div>
     </div>
   );

@@ -7,7 +7,8 @@
     "server": "cd server && node index.js",
     "server:dev": "cd server && nodemon index.js",
     "client": "cd client && npm run dev",
-    "seed": "node server/scripts/seedStocks.js && node server/scripts/seedTrades.js && node server/scripts/seedPPTrades.js",
+    "seed": "node server/scripts/seed.js",
+    "seed:legacy": "node server/scripts/seedStocks.js && node server/scripts/seedTrades.js && node server/scripts/seedPPTrades.js",
     "install:all": "npm install && cd client && npm install"
   },
   "dependencies": {

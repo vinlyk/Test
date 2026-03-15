@@ -4,9 +4,9 @@ const links = [
   { to: '/',           label: 'Dashboard',     icon: '📊' },
   { to: '/positions',  label: 'Positions',     icon: '📈' },
   { to: '/watchlist',  label: 'Watchlist',     icon: '👁' },
-  { to: '/trades',     label: 'Trade Journal', icon: '📓' },
-  { to: '/pp-trades',  label: 'PP Trades',     icon: '🎯' },
-  { to: '/add-trade',  label: 'Add Trade',     icon: '➕' },
+  { to: '/trades',     label: 'TOS Tracker',   icon: '📓' },
+  { to: '/pp-trades',  label: 'Options Log',   icon: '🎯' },
+  { to: '/account',    label: 'Account',       icon: '💼' },
 ];
 
 const navStyle = (active) => ({
