@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CEO-Assist</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <!-- Marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- DOMPurify for sanitizing rendered HTML -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <div class="logo-icon">C</div>
+      <div>
+        <div class="logo-title">CEO-Assist</div>
+        <div class="logo-sub">Powered by Claude Opus 4.6</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Integration status -->
+  <div class="sidebar-section">
+    <div class="section-label">Integrations</div>
+    <div id="integration-status" class="integration-list">
+      <div class="integration-item checking" data-key="anthropic">
+        <span class="status-dot"></span> Claude AI
+      </div>
+      <div class="integration-item checking" data-key="microsoft">
+        <span class="status-dot"></span> Microsoft 365
+      </div>
+      <div class="integration-item checking" data-key="affinity_crm">
+        <span class="status-dot"></span> Affinity CRM
+      </div>
+      <div class="integration-item checking" data-key="pitchbook">
+        <span class="status-dot"></span> Pitchbook
+      </div>
+      <div class="integration-item checking" data-key="travel">
+        <span class="status-dot"></span> Travel (Amadeus)
+      </div>
+    </div>
+    <div id="ms-auth-btn-wrap" style="display:none;margin-top:8px">
+      <button class="btn-secondary btn-sm" onclick="startMsAuth()">Connect Microsoft 365</button>
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="sidebar-section">
+    <div class="section-label">Quick Actions</div>
+    <div class="quick-actions">
+      <button class="quick-btn" onclick="sendQuick('Show my calendar for the next 7 days')">
+        📅 Today&apos;s Calendar
+      </button>
+      <button class="quick-btn" onclick="sendQuick('Show my 10 most recent unread emails')">
+        📧 Recent Emails
+      </button>
+      <button class="quick-btn" onclick="showMeetingPrepDialog()">
+        📋 Prepare for Meeting
+      </button>
+      <button class="quick-btn" onclick="showPostMeetingDialog()">
+        📝 Post-Meeting Notes
+      </button>
+      <button class="quick-btn" onclick="showTravelDialog()">
+        ✈️ Plan Travel
+      </button>
+      <button class="quick-btn" onclick="sendQuick('What are the top strategic priorities I should focus on this week based on my calendar and emails?')">
+        🎯 Weekly Priorities
+      </button>
+    </div>
+  </div>
+
+  <!-- Reset -->
+  <div class="sidebar-footer">
+    <button class="btn-ghost" onclick="resetConversation()">⟳ New Conversation</button>
+    <button class="btn-ghost" onclick="toggleAuditLog()">🔍 Audit Log</button>
+  </div>
+</aside>
+
+<!-- ── Main Chat Area ────────────────────────────────────────── -->
+<main class="main">
+  <div class="chat-header">
+    <h1>Executive Assistant</h1>
+    <div class="connection-badge" id="conn-badge">Connecting...</div>
+  </div>
+
+  <!-- Messages -->
+  <div class="messages" id="messages">
+    <div class="welcome-card">
+      <h2>Good to see you.</h2>
+      <p>I'm your AI executive assistant. I can help you manage your schedule, prepare for meetings, research people and companies, take meeting notes, and plan travel.</p>
+      <p>Everything stays on your laptop — I access your Outlook, CRM, and other data only when you ask.</p>
+      <div class="welcome-examples">
+        <strong>Try asking:</strong>
+        <ul>
+          <li>"Prepare me for my meeting with John Smith at Acme Corp tomorrow"</li>
+          <li>"What emails have I exchanged with Sarah Chen in the last month?"</li>
+          <li>"Find business class flights from Singapore to London on March 28"</li>
+          <li>"Schedule a 1-hour meeting with the BD team next week"</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input area -->
+  <div class="input-area">
+    <div class="input-wrap">
+      <textarea
+        id="user-input"
+        class="user-textarea"
+        placeholder="Ask me anything... (Shift+Enter for new line, Enter to send)"
+        rows="1"
+        autofocus
+      ></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send (Enter)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+    <div class="input-hint">CEO-Assist is running locally. Your data stays private.</div>
+  </div>
+</main>
+
+<!-- ── Dialogs ────────────────────────────────────────────────── -->
+<div id="dialog-overlay" class="dialog-overlay hidden" onclick="closeDialog()">
+  <div class="dialog" onclick="event.stopPropagation()">
+    <div id="dialog-content"></div>
+    <button class="btn-ghost" style="margin-top:12px" onclick="closeDialog()">Cancel</button>
+  </div>
+</div>
+
+<!-- ── Audit Log Panel ───────────────────────────────────────── -->
+<div id="audit-panel" class="audit-panel hidden">
+  <div class="audit-header">
+    <span>Audit Log</span>
+    <button onclick="toggleAuditLog()">✕</button>
+  </div>
+  <div id="audit-entries" class="audit-entries">Loading...</div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
