@@ -400,13 +400,26 @@ def analyze():
 # Entry point
 # ---------------------------------------------------------------------------
 
+def find_free_port(start=5000, end=5100):
+    """Find the first available TCP port in the given range."""
+    import socket
+    for port in range(start, end):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(f"No free port found between {start} and {end}.")
+
+
 if __name__ == "__main__":
-    port = 5000
+    port = find_free_port()
 
     # Auto-open browser after a short delay
     def open_browser():
         import time
-        time.sleep(1)
+        time.sleep(1.5)
         webbrowser.open(f"http://localhost:{port}")
 
     threading.Thread(target=open_browser, daemon=True).start()
