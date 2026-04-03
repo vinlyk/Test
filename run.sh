@@ -13,6 +13,7 @@ fi
 
 # Install dependencies if needed
 echo "Checking dependencies..."
+python3 -m pip install -r requirements.txt -q --break-system-packages 2>/dev/null || \
 python3 -m pip install -r requirements.txt -q
 
 # Launch
