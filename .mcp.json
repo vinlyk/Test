@@ -4,8 +4,7 @@
       "command": "node",
       "args": ["/root/tradingview-mcp-jackson/src/server.js"],
       "env": {
-        "TRADINGVIEW_CDP_HOST": "localhost",
-        "TRADINGVIEW_CDP_PORT": "9222"
+        "TRADINGVIEW_CDP_URL": "https://turn-committed-companion-tub.trycloudflare.com"
       }
     }
   }
