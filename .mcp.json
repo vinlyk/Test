@@ -2,7 +2,11 @@
   "mcpServers": {
     "tradingview": {
       "command": "node",
-      "args": ["/root/tradingview-mcp-jackson/src/server.js"]
+      "args": ["/root/tradingview-mcp-jackson/src/server.js"],
+      "env": {
+        "TRADINGVIEW_CDP_HOST": "localhost",
+        "TRADINGVIEW_CDP_PORT": "9222"
+      }
     }
   }
 }
