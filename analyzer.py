@@ -8,22 +8,19 @@ Options:
     --timestamps        Include [MM:SS] timestamps in transcript output
     --no-transcript     Suppress full transcript (key points only)
     --json              Emit all output as a JSON object
-    --model MODEL       Claude model to use (default: claude-haiku-4-5-20251001)
+    --model MODEL       Claude model override (default: subscription default)
     --language LANG     Preferred transcript language code (default: en)
 """
 import argparse
 import json
-import os
 import sys
 
-import anthropic
-
-from analysis import DEFAULT_MODEL, analyze_transcript
+from analysis import analyze_transcript
 from transcript import TranscriptError, clean_transcript, extract_video_id, fetch_transcript
 
 
 def _format_human(url: str, video_id: str, transcript: str, result: dict,
-                   show_transcript: bool) -> str:
+                  show_transcript: bool) -> str:
     sep = "=" * 60
     lines = [
         sep,
@@ -51,7 +48,7 @@ def _format_human(url: str, video_id: str, transcript: str, result: dict,
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyze YouTube video transcripts with Claude AI."
+        description="Analyze YouTube video transcripts using your Claude subscription."
     )
     parser.add_argument("url", help="YouTube video URL or bare video ID")
     parser.add_argument(
@@ -67,8 +64,8 @@ def main():
         help="Emit all output as a JSON object"
     )
     parser.add_argument(
-        "--model", default=DEFAULT_MODEL,
-        help=f"Claude model to use (default: {DEFAULT_MODEL})"
+        "--model", default=None,
+        help="Claude model override (default: uses your subscription's default model)"
     )
     parser.add_argument(
         "--language", default="en",
@@ -76,12 +73,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Require API key
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("Error: ANTHROPIC_API_KEY environment variable is not set.", file=sys.stderr)
-        sys.exit(2)
 
     # Extract video ID
     try:
@@ -98,12 +89,11 @@ def main():
         print(f"Transcript error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Analyze with Claude
+    # Analyze with Claude (via CLI subscription)
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        result = analyze_transcript(client, transcript, model=args.model)
-    except anthropic.APIError as e:
-        print(f"API error: {e}", file=sys.stderr)
+        result = analyze_transcript(transcript, model=args.model)
+    except RuntimeError as e:
+        print(f"Claude error: {e}", file=sys.stderr)
         sys.exit(2)
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)

@@ -1,17 +1,16 @@
 """
 YouTube Transcript Analyzer — Web UI
+Runs using your Claude subscription via the `claude` CLI — no API key needed.
 Run: python web_ui.py
 Opens automatically at http://localhost:5000
 """
 import json
-import os
 import threading
 import webbrowser
 
-import anthropic
 from flask import Flask, jsonify, render_template_string, request
 
-from analysis import DEFAULT_MODEL, analyze_transcript
+from analysis import analyze_transcript
 from transcript import TranscriptError, clean_transcript, extract_video_id, fetch_transcript
 
 app = Flask(__name__)
@@ -59,7 +58,7 @@ HTML = """<!DOCTYPE html>
 
   label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.4rem; }
 
-  input[type="text"], input[type="password"] {
+  input[type="text"] {
     width: 100%;
     background: #0f1117;
     border: 1px solid #2d3348;
@@ -70,10 +69,10 @@ HTML = """<!DOCTYPE html>
     outline: none;
     transition: border-color 0.2s;
   }
-  input[type="text"]:focus, input[type="password"]:focus { border-color: #ff4e4e; }
+  input[type="text"]:focus { border-color: #ff4e4e; }
 
   .row { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; align-items: flex-end; }
-  .row .field { flex: 1; min-width: 160px; }
+  .row .field { flex: 1; min-width: 120px; }
 
   .options { display: flex; gap: 1.5rem; margin-top: 1rem; flex-wrap: wrap; }
   .options label {
@@ -122,7 +121,6 @@ HTML = """<!DOCTYPE html>
     display: none;
   }
 
-  /* Results */
   #results { display: none; }
 
   .meta {
@@ -144,7 +142,6 @@ HTML = """<!DOCTYPE html>
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
-  /* Key points */
   .kp-list { list-style: none; }
   .kp-item {
     display: flex; gap: 0.75rem; align-items: flex-start;
@@ -165,7 +162,6 @@ HTML = """<!DOCTYPE html>
   .badge.low    { background: #1e3a5f; color: #93c5fd; }
   .kp-text { font-size: 0.95rem; line-height: 1.5; }
 
-  /* Transcript */
   .transcript-box {
     background: #0f1117;
     border: 1px solid #2d3348;
@@ -179,7 +175,6 @@ HTML = """<!DOCTYPE html>
     word-break: break-word;
   }
 
-  /* Copy button */
   .copy-btn {
     background: #2d3348; border: none; border-radius: 6px;
     color: #94a3b8; cursor: pointer; font-size: 0.8rem;
@@ -192,17 +187,13 @@ HTML = """<!DOCTYPE html>
 <body>
 <div class="container">
   <h1>YouTube Transcript Analyzer</h1>
-  <p class="subtitle">Powered by Claude AI — paste a URL and click Analyze</p>
+  <p class="subtitle">Powered by your Claude subscription — no API key needed</p>
 
   <div class="card">
     <label>YouTube URL</label>
     <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
 
     <div class="row">
-      <div class="field">
-        <label>Anthropic API Key</label>
-        <input type="password" id="apikey" placeholder="sk-ant-..." value="{{ api_key }}">
-      </div>
       <div class="field">
         <label>Language</label>
         <input type="text" id="language" value="en" style="max-width:90px">
@@ -245,14 +236,12 @@ HTML = """<!DOCTYPE html>
 
 <script>
 async function analyze() {
-  const url      = document.getElementById('url').value.trim();
-  const apikey   = document.getElementById('apikey').value.trim();
-  const language = document.getElementById('language').value.trim() || 'en';
+  const url          = document.getElementById('url').value.trim();
+  const language     = document.getElementById('language').value.trim() || 'en';
   const timestamps   = document.getElementById('timestamps').checked;
   const no_transcript = document.getElementById('no_transcript').checked;
 
-  if (!url)    { showError('Please enter a YouTube URL.'); return; }
-  if (!apikey) { showError('Please enter your Anthropic API key.'); return; }
+  if (!url) { showError('Please enter a YouTube URL.'); return; }
 
   setLoading(true);
   hideError();
@@ -262,7 +251,7 @@ async function analyze() {
     const resp = await fetch('/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, apikey, language, timestamps, no_transcript })
+      body: JSON.stringify({ url, language, timestamps, no_transcript })
     });
     const data = await resp.json();
     if (!resp.ok) { showError(data.error || 'An error occurred.'); return; }
@@ -275,13 +264,11 @@ async function analyze() {
 }
 
 function renderResults(data, noTranscript) {
-  // Meta
   document.getElementById('meta').innerHTML =
     `<span>Video: ${data.video_id}</span>` +
     `<span>Model: ${data.metadata.model}</span>` +
     `<span>Chunks: ${data.metadata.chunks_used}</span>`;
 
-  // Key points
   const list = document.getElementById('kpList');
   list.innerHTML = '';
   (data.key_points || []).forEach(kp => {
@@ -292,7 +279,6 @@ function renderResults(data, noTranscript) {
     </li>`;
   });
 
-  // Transcript
   const transcriptTab = document.getElementById('transcriptTabBtn');
   if (noTranscript || !data.transcript) {
     transcriptTab.style.display = 'none';
@@ -301,7 +287,6 @@ function renderResults(data, noTranscript) {
     document.getElementById('transcriptBox').textContent = data.transcript;
   }
 
-  // Show results, default to keypoints tab
   switchTab('keypoints', document.querySelector('.tab-btn'));
   document.getElementById('results').style.display = 'block';
 }
@@ -327,7 +312,6 @@ function showError(msg) { const b = document.getElementById('errorBox'); b.textC
 function hideError()    { document.getElementById('errorBox').style.display = 'none'; }
 function escHtml(s)     { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// Allow Enter key to trigger analyze
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !document.getElementById('analyzeBtn').disabled) analyze();
 });
@@ -343,23 +327,19 @@ document.addEventListener('keydown', e => {
 
 @app.route("/")
 def index():
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    return render_template_string(HTML, api_key=api_key)
+    return render_template_string(HTML)
 
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
     body = request.get_json(force=True)
-    url          = (body.get("url") or "").strip()
-    apikey       = (body.get("apikey") or "").strip()
-    language     = (body.get("language") or "en").strip()
-    timestamps   = bool(body.get("timestamps", False))
+    url           = (body.get("url") or "").strip()
+    language      = (body.get("language") or "en").strip()
+    timestamps    = bool(body.get("timestamps", False))
     no_transcript = bool(body.get("no_transcript", False))
 
     if not url:
         return jsonify({"error": "URL is required."}), 400
-    if not apikey:
-        return jsonify({"error": "API key is required."}), 400
 
     try:
         video_id = extract_video_id(url)
@@ -373,12 +353,9 @@ def analyze():
         return jsonify({"error": str(e)}), 400
 
     try:
-        client = anthropic.Anthropic(api_key=apikey)
-        result = analyze_transcript(client, transcript)
-    except anthropic.AuthenticationError:
-        return jsonify({"error": "Invalid API key."}), 401
-    except anthropic.APIError as e:
-        return jsonify({"error": f"Claude API error: {e}"}), 502
+        result = analyze_transcript(transcript)
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 502
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {e}"}), 500
 
@@ -401,7 +378,6 @@ def analyze():
 # ---------------------------------------------------------------------------
 
 def find_free_port(start=5000, end=5100):
-    """Find the first available TCP port in the given range."""
     import socket
     for port in range(start, end):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -416,7 +392,6 @@ def find_free_port(start=5000, end=5100):
 if __name__ == "__main__":
     port = find_free_port()
 
-    # Auto-open browser after a short delay
     def open_browser():
         import time
         time.sleep(1.5)
@@ -425,5 +400,6 @@ if __name__ == "__main__":
     threading.Thread(target=open_browser, daemon=True).start()
 
     print(f"\n  YouTube Transcript Analyzer")
+    print(f"  Powered by your Claude subscription (no API key needed)")
     print(f"  Open: http://localhost:{port}\n")
     app.run(host="0.0.0.0", port=port, debug=False)
