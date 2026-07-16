@@ -6,7 +6,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
 from unittest.mock import patch, MagicMock
 
-from transcript import extract_video_id, fetch_transcript, clean_transcript, TranscriptError
+from transcript import (
+    extract_video_id,
+    fetch_transcript,
+    clean_transcript,
+    TranscriptError,
+    _parse_json3,
+    _captions_from_info,
+    _fetch_via_ytdlp,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +140,68 @@ class TestFetchTranscript:
 
         result = fetch_transcript("vid123")
         assert result == raw
+
+
+# ---------------------------------------------------------------------------
+# yt-dlp fallback helpers
+# ---------------------------------------------------------------------------
+
+class TestParseJson3:
+    def test_basic(self):
+        data = {"events": [
+            {"tStartMs": 0, "dDurationMs": 1500, "segs": [{"utf8": "Hello "}, {"utf8": "world"}]},
+            {"tStartMs": 2500, "dDurationMs": 2000, "segs": [{"utf8": "Second"}]},
+        ]}
+        assert _parse_json3(data) == [
+            {"text": "Hello world", "start": 0.0, "duration": 1.5},
+            {"text": "Second", "start": 2.5, "duration": 2.0},
+        ]
+
+    def test_skips_blank_segments(self):
+        data = {"events": [
+            {"tStartMs": 0, "dDurationMs": 1000, "segs": [{"utf8": "\n"}]},
+            {"tStartMs": 1000, "dDurationMs": 1000, "segs": [{"utf8": "Real"}]},
+        ]}
+        assert _parse_json3(data) == [{"text": "Real", "start": 1.0, "duration": 1.0}]
+
+    def test_empty_events(self):
+        assert _parse_json3({"events": []}) == []
+        assert _parse_json3({}) == []
+
+
+class TestCaptionsFromInfo:
+    def test_prefers_requested_language(self):
+        info = {
+            "subtitles": {"en": [{"ext": "json3", "url": "http://x/en.json3"}]},
+            "automatic_captions": {},
+        }
+        with patch("transcript._download_json", return_value={
+            "events": [{"tStartMs": 0, "dDurationMs": 1000, "segs": [{"utf8": "hi"}]}]
+        }):
+            result = _captions_from_info(info, ["en"])
+        assert result == [{"text": "hi", "start": 0.0, "duration": 1.0}]
+
+    def test_falls_back_to_auto_captions(self):
+        info = {
+            "subtitles": {},
+            "automatic_captions": {"en": [{"ext": "json3", "url": "http://x/auto.json3"}]},
+        }
+        with patch("transcript._download_json", return_value={
+            "events": [{"tStartMs": 0, "dDurationMs": 500, "segs": [{"utf8": "auto"}]}]
+        }):
+            result = _captions_from_info(info, ["en"])
+        assert result == [{"text": "auto", "start": 0.0, "duration": 0.5}]
+
+    def test_no_json3_track_returns_empty(self):
+        info = {"subtitles": {"en": [{"ext": "vtt", "url": "http://x/en.vtt"}]}, "automatic_captions": {}}
+        assert _captions_from_info(info, ["en"]) == []
+
+
+class TestFetchViaYtdlp:
+    def test_returns_empty_when_ytdlp_missing(self):
+        # Simulate yt_dlp not being importable.
+        with patch.dict(sys.modules, {"yt_dlp": None}):
+            assert _fetch_via_ytdlp("vid123", ["en"]) == []
 
 
 # ---------------------------------------------------------------------------

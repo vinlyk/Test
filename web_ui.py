@@ -118,9 +118,11 @@ HTML = """<!DOCTYPE html>
     border-radius: 8px;
     color: #fca5a5;
     font-size: 0.9rem;
+    line-height: 1.5;
     padding: 0.8rem 1rem;
     margin-top: 1rem;
     display: none;
+    white-space: pre-wrap;
   }
 
   #results { display: none; }

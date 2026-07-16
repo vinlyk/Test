@@ -1,8 +1,10 @@
 """
 YouTube transcript fetching and cleaning.
 """
+import json
 import re
 from urllib.parse import urlparse, parse_qs
+from urllib.request import Request, urlopen
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
@@ -11,10 +13,27 @@ from youtube_transcript_api._errors import (
     VideoUnavailable,
 )
 
+# Block errors are only present in newer versions — import defensively.
+try:
+    from youtube_transcript_api._errors import RequestBlocked, IpBlocked
+    _BLOCK_ERRORS = (RequestBlocked, IpBlocked)
+except ImportError:  # pragma: no cover - depends on library version
+    _BLOCK_ERRORS = ()
+
 
 class TranscriptError(Exception):
     """Wraps all youtube-transcript-api errors."""
     pass
+
+
+_BLOCK_HELP = (
+    "YouTube blocked the transcript request. This almost always means your requests "
+    "look like they come from a datacenter IP.\n"
+    "  1. If you are on a VPN, turn it OFF and try again (most common fix).\n"
+    "  2. Otherwise install yt-dlp so the app can use your browser's YouTube login:\n"
+    "       python3 -m pip install yt-dlp\n"
+    "     then make sure you are signed in to YouTube in Chrome or Safari and retry."
+)
 
 
 def extract_video_id(url: str) -> str:
@@ -86,7 +105,7 @@ def fetch_transcript(video_id: str, languages: list = None) -> list:
         fetched = api.fetch(video_id, languages=languages)
         return fetched.to_raw_data()
     except TranscriptsDisabled as e:
-        raise TranscriptError(f"Transcripts are disabled for this video.") from e
+        raise TranscriptError("Transcripts are disabled for this video.") from e
     except NoTranscriptFound:
         # Fall back: pick any available transcript
         try:
@@ -94,17 +113,105 @@ def fetch_transcript(video_id: str, languages: list = None) -> list:
             transcript = transcript_list.find_transcript([])
             fetched = transcript.fetch()
             return fetched.to_raw_data()
-        except Exception as inner:
+        except Exception:
+            # Nothing via the primary library — try yt-dlp before giving up.
+            raw = _fetch_via_ytdlp(video_id, languages)
+            if raw:
+                return raw
             raise TranscriptError(
                 f"No transcript found for video '{video_id}'. "
                 "The video may not have captions available."
-            ) from inner
+            )
     except VideoUnavailable as e:
         raise TranscriptError(
             f"Video '{video_id}' is unavailable. Check the URL and that the video is public."
         ) from e
+    except _BLOCK_ERRORS as e:
+        # YouTube is blocking the anonymous request (VPN / datacenter IP).
+        # Retry with yt-dlp using the browser's YouTube login before surfacing the error.
+        raw = _fetch_via_ytdlp(video_id, languages)
+        if raw:
+            return raw
+        raise TranscriptError(_BLOCK_HELP) from e
     except Exception as e:
+        # Unknown failure — attempt the yt-dlp fallback as a last resort.
+        raw = _fetch_via_ytdlp(video_id, languages)
+        if raw:
+            return raw
         raise TranscriptError(f"Failed to fetch transcript: {e}") from e
+
+
+def _parse_json3(data: dict) -> list:
+    """Convert YouTube json3 caption data into raw_data dicts."""
+    out = []
+    for ev in (data.get("events") or []):
+        segs = ev.get("segs") or []
+        text = "".join(s.get("utf8", "") for s in segs)
+        if not text.strip():
+            continue
+        out.append({
+            "text": text,
+            "start": ev.get("tStartMs", 0) / 1000.0,
+            "duration": ev.get("dDurationMs", 0) / 1000.0,
+        })
+    return out
+
+
+def _download_json(url: str) -> dict:
+    req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _captions_from_info(info: dict, languages: list) -> list:
+    """Pick a json3 caption track from yt-dlp info and parse it."""
+    subs = info.get("subtitles") or {}
+    autos = info.get("automatic_captions") or {}
+    # Preferred languages first, then any manual, then any auto-generated.
+    ordered = list(languages)
+    ordered += [l for l in subs if l not in ordered]
+    ordered += [l for l in autos if l not in ordered]
+
+    for lang in ordered:
+        tracks = subs.get(lang) or autos.get(lang) or []
+        json3 = next((t for t in tracks if t.get("ext") == "json3" and t.get("url")), None)
+        if not json3:
+            continue
+        try:
+            return _parse_json3(_download_json(json3["url"]))
+        except Exception:
+            continue
+    return []
+
+
+def _fetch_via_ytdlp(video_id: str, languages: list) -> list:
+    """
+    Fallback transcript fetch using yt-dlp. Tries the browser's YouTube login
+    (cookies) first — this bypasses the anonymous-IP blocking YouTube applies to
+    datacenter/VPN addresses. Returns [] if yt-dlp is unavailable or finds nothing.
+    """
+    try:
+        import yt_dlp
+    except ImportError:
+        return []
+
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    # Cookie sources to try, in order. None = no cookies (works from clean IPs).
+    cookie_attempts = [("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",), None]
+
+    for cookies in cookie_attempts:
+        opts = {"skip_download": True, "quiet": True, "no_warnings": True}
+        if cookies:
+            opts["cookiesfrombrowser"] = cookies
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+        except Exception:
+            continue  # e.g. browser not installed / locked DB / still blocked
+        raw = _captions_from_info(info, languages)
+        if raw:
+            return raw
+    return []
 
 
 def clean_transcript(raw: list, include_timestamps: bool = False) -> str:
