@@ -4,6 +4,9 @@
 
 cd "$(dirname "$0")"
 
+# Ensure this launcher stays executable for future double-click runs
+chmod +x "$0" 2>/dev/null
+
 echo "============================================"
 echo "  YouTube Transcript Analyzer"
 echo "============================================"
@@ -38,7 +41,8 @@ echo "  Dependencies OK"
 # Launch
 echo ""
 echo "Starting web server..."
-echo "  If the browser does not open automatically, go to: http://localhost:5000"
+echo "  Your browser will open automatically."
+echo "  If it does not, use the http://localhost:PORT line printed below."
 echo "  Press Ctrl+C to stop."
 echo ""
 python3 web_ui.py

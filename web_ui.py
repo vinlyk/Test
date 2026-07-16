@@ -5,6 +5,8 @@ Run: python web_ui.py
 Opens automatically at http://localhost:5000
 """
 import json
+import subprocess
+import sys
 import threading
 import webbrowser
 
@@ -389,13 +391,28 @@ def find_free_port(start=5000, end=5100):
     raise RuntimeError(f"No free port found between {start} and {end}.")
 
 
+def _open_url(url: str):
+    """Open the URL in the default browser, using the most reliable method per OS."""
+    try:
+        if sys.platform == "darwin":
+            # macOS: the `open` command is far more reliable than webbrowser.
+            subprocess.run(["open", url], check=False)
+        elif sys.platform.startswith("win"):
+            subprocess.run(["cmd", "/c", "start", "", url], check=False, shell=False)
+        else:
+            webbrowser.open(url)
+    except Exception:
+        # Fall back to the cross-platform module; worst case the user opens it manually.
+        webbrowser.open(url)
+
+
 if __name__ == "__main__":
     port = find_free_port()
 
     def open_browser():
         import time
         time.sleep(1.5)
-        webbrowser.open(f"http://localhost:{port}")
+        _open_url(f"http://localhost:{port}")
 
     threading.Thread(target=open_browser, daemon=True).start()
 
