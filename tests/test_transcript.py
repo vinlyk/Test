@@ -35,6 +35,16 @@ class TestExpandLanguages:
     def test_requested_language_first(self):
         assert _expand_languages(["es"])[0] == "es"
 
+    def test_cn_alias_maps_to_chinese(self):
+        # Users often type "CN" (a country code) instead of "zh".
+        result = _expand_languages(["CN"])
+        assert "zh" in result
+        assert "zh-Hans" in result
+        assert "cn" not in result  # bogus code is dropped, not sent to YouTube
+
+    def test_chinese_word_alias(self):
+        assert "zh" in _expand_languages(["chinese"])
+
 
 # ---------------------------------------------------------------------------
 # extract_video_id

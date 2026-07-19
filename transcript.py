@@ -88,10 +88,18 @@ def extract_video_id(url: str) -> str:
     raise ValueError(f"Could not extract a YouTube video ID from: {url}")
 
 
+# Chinese track codes YouTube actually uses (there is no bare "cn" track).
+_ZH_VARIANTS = ["zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK", "zh-Hans-CN", "zh-Hant-TW"]
+
 # Common regional/script variants, so selecting a base language finds real tracks.
+# Aliases map friendly/incorrect inputs (e.g. "cn", "chinese") to real codes.
 _LANG_VARIANTS = {
-    "zh": ["zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK", "zh-Hans-CN", "zh-Hant-TW"],
+    "zh": _ZH_VARIANTS,
+    "cn": _ZH_VARIANTS,          # common miscode: "CN" is a country, not a language
+    "chinese": _ZH_VARIANTS,
+    "zho": _ZH_VARIANTS,
     "en": ["en", "en-US", "en-GB", "en-orig"],
+    "english": ["en", "en-US", "en-GB", "en-orig"],
     "pt": ["pt", "pt-BR", "pt-PT"],
     "es": ["es", "es-ES", "es-419", "es-US"],
     "fr": ["fr", "fr-FR", "fr-CA"],
@@ -106,7 +114,8 @@ def _expand_languages(languages: list) -> list:
         for variant in _LANG_VARIANTS.get(base, [lang]):
             if variant not in expanded:
                 expanded.append(variant)
-        if lang not in expanded:
+        # Keep the original request too (unless it was just an alias like "cn"/"chinese").
+        if lang not in expanded and base not in _LANG_VARIANTS:
             expanded.append(lang)
     return expanded
 
