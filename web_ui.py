@@ -125,6 +125,15 @@ HTML = """<!DOCTYPE html>
     white-space: pre-wrap;
   }
 
+  .loading-note {
+    display: none;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    text-align: center;
+    margin-top: 0.9rem;
+  }
+
   #results { display: none; }
 
   .meta {
@@ -214,6 +223,11 @@ HTML = """<!DOCTYPE html>
       <span id="btnText">Analyze</span>
       <div class="spinner" id="spinner"></div>
     </button>
+
+    <p class="loading-note" id="loadingNote">
+      Working… fetching the transcript, then asking Claude to analyze it.
+      Translation and long videos can take a few minutes — progress is shown in the Terminal window.
+    </p>
 
     <div class="error-box" id="errorBox"></div>
   </div>
@@ -313,6 +327,7 @@ function setLoading(on) {
   document.getElementById('analyzeBtn').disabled = on;
   document.getElementById('btnText').style.display = on ? 'none' : '';
   document.getElementById('spinner').style.display = on ? 'block' : 'none';
+  document.getElementById('loadingNote').style.display = on ? 'block' : 'none';
 }
 
 function showError(msg) { const b = document.getElementById('errorBox'); b.textContent = msg; b.style.display = 'block'; }
@@ -355,8 +370,10 @@ def analyze():
         return jsonify({"error": str(e)}), 400
 
     try:
+        print(f"\n  [analyzer] Fetching transcript for {video_id} ...", flush=True)
         raw = fetch_transcript(video_id, languages=[language])
         transcript = clean_transcript(raw, include_timestamps=timestamps)
+        print(f"  [analyzer] Transcript fetched ({len(transcript)} chars).", flush=True)
     except TranscriptError as e:
         return jsonify({"error": str(e)}), 400
 
@@ -364,6 +381,7 @@ def analyze():
         if translate:
             transcript = translate_to_english(transcript)
         result = analyze_transcript(transcript)
+        print("  [analyzer] Done.", flush=True)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 502
     except Exception as e:

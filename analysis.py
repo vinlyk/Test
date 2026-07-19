@@ -4,10 +4,16 @@ Claude analysis via the `claude` CLI (uses your Claude subscription — no API k
 import json
 import shutil
 import subprocess
+import sys
 
 from chunker import needs_chunking, split_by_chars, split_into_chunks
 
 DEFAULT_MODEL = None  # None = use CLI default (matches your subscription tier)
+
+
+def _log(message: str):
+    """Print a progress line to the terminal running the app."""
+    print(f"  [analyzer] {message}", file=sys.stderr, flush=True)
 
 _TRANSLATE_INSTRUCTION = (
     "Translate the following video transcript into natural, fluent English. "
@@ -113,9 +119,11 @@ def _analyze_chunked(text: str, model: str = None) -> tuple:
 
     all_points = []
     for i, chunk in enumerate(chunks):
+        _log(f"Extracting key points (part {i + 1}/{len(chunks)})...")
         points = _summarize_chunk(chunk, i, len(chunks), model=model)
         all_points.extend(points)
 
+    _log("Consolidating key points...")
     key_points = _consolidate_summaries(all_points, model=model)
     return key_points, len(chunks) + 1
 
@@ -135,7 +143,8 @@ def translate_to_english(text: str, model: str = DEFAULT_MODEL) -> str:
 
     chunks = split_by_chars(text)
     translated_parts = []
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks, 1):
+        _log(f"Translating to English (part {i}/{len(chunks)})...")
         response = _call_claude(_TRANSLATE_INSTRUCTION + chunk, model=model)
         translated_parts.append(response.strip())
 
@@ -158,6 +167,7 @@ def analyze_transcript(transcript_text: str, model: str = DEFAULT_MODEL) -> dict
     if needs_chunking(transcript_text):
         key_points, chunks_used = _analyze_chunked(transcript_text, model=model)
     else:
+        _log("Extracting key points...")
         key_points = _analyze_single_pass(transcript_text, model=model)
         chunks_used = 1
 
