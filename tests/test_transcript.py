@@ -14,7 +14,26 @@ from transcript import (
     _parse_json3,
     _captions_from_info,
     _fetch_via_ytdlp,
+    _expand_languages,
 )
+
+
+class TestExpandLanguages:
+    def test_chinese_expands_to_variants(self):
+        result = _expand_languages(["zh"])
+        assert result[0] == "zh"
+        for v in ("zh-Hans", "zh-Hant", "zh-CN", "zh-TW"):
+            assert v in result
+
+    def test_unknown_language_kept_as_is(self):
+        assert _expand_languages(["ja"]) == ["ja"]
+
+    def test_no_duplicates(self):
+        result = _expand_languages(["zh", "zh-CN"])
+        assert len(result) == len(set(result))
+
+    def test_requested_language_first(self):
+        assert _expand_languages(["es"])[0] == "es"
 
 
 # ---------------------------------------------------------------------------
@@ -88,7 +107,10 @@ class TestFetchTranscript:
         with patch("transcript.YouTubeTranscriptApi", mock_class):
             result = fetch_transcript("dQw4w9WgXcQ")
         assert result == raw
-        mock_instance.fetch.assert_called_once_with("dQw4w9WgXcQ", languages=["en"])
+        # Language list is expanded to include variants; requested language comes first.
+        args, kwargs = mock_instance.fetch.call_args
+        assert args[0] == "dQw4w9WgXcQ"
+        assert kwargs["languages"][0] == "en"
 
     @patch("transcript.YouTubeTranscriptApi")
     def test_custom_language(self, mock_class):
@@ -96,8 +118,21 @@ class TestFetchTranscript:
         mock_class, mock_instance = self._make_api_mock(raw)
         with patch("transcript.YouTubeTranscriptApi", mock_class):
             result = fetch_transcript("dQw4w9WgXcQ", languages=["es"])
-        mock_instance.fetch.assert_called_once_with("dQw4w9WgXcQ", languages=["es"])
+        args, kwargs = mock_instance.fetch.call_args
+        assert kwargs["languages"][0] == "es"
         assert result == raw
+
+    @patch("transcript.YouTubeTranscriptApi")
+    def test_chinese_variants_expanded(self, mock_class):
+        raw = [{"text": "你好", "start": 0.0, "duration": 1.0}]
+        mock_class, mock_instance = self._make_api_mock(raw)
+        with patch("transcript.YouTubeTranscriptApi", mock_class):
+            fetch_transcript("dQw4w9WgXcQ", languages=["zh"])
+        langs = mock_instance.fetch.call_args.kwargs["languages"]
+        # zh must expand to include the common script/region variants.
+        assert "zh-Hans" in langs
+        assert "zh-Hant" in langs
+        assert "zh-TW" in langs
 
     @patch("transcript.YouTubeTranscriptApi")
     def test_transcripts_disabled_raises(self, mock_class):

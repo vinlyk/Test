@@ -5,9 +5,17 @@ import json
 import shutil
 import subprocess
 
-from chunker import needs_chunking, split_into_chunks
+from chunker import needs_chunking, split_by_chars, split_into_chunks
 
 DEFAULT_MODEL = None  # None = use CLI default (matches your subscription tier)
+
+_TRANSLATE_INSTRUCTION = (
+    "Translate the following video transcript into natural, fluent English. "
+    "Output ONLY the English translation — no preamble, notes, or commentary. "
+    "Preserve the line breaks between lines. "
+    "If a line starts with a [MM:SS] timestamp, keep that timestamp unchanged at "
+    "the start of the line.\n\nTRANSCRIPT:\n"
+)
 
 _INSTRUCTION = (
     "Analyze this YouTube transcript and extract key points. "
@@ -110,6 +118,28 @@ def _analyze_chunked(text: str, model: str = None) -> tuple:
 
     key_points = _consolidate_summaries(all_points, model=model)
     return key_points, len(chunks) + 1
+
+
+def translate_to_english(text: str, model: str = DEFAULT_MODEL) -> str:
+    """
+    Translate a transcript into English via the `claude` CLI (your subscription).
+
+    Splits by character count so non-space-delimited languages (e.g. Chinese) are
+    chunked correctly, translates each chunk, and rejoins in order. Returns "" for
+    empty input.
+    """
+    _check_claude_cli()
+
+    if not text.strip():
+        return ""
+
+    chunks = split_by_chars(text)
+    translated_parts = []
+    for chunk in chunks:
+        response = _call_claude(_TRANSLATE_INSTRUCTION + chunk, model=model)
+        translated_parts.append(response.strip())
+
+    return "\n".join(translated_parts)
 
 
 def analyze_transcript(transcript_text: str, model: str = DEFAULT_MODEL) -> dict:

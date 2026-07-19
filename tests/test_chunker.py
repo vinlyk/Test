@@ -13,6 +13,7 @@ from chunker import (
     estimate_tokens,
     needs_chunking,
     split_into_chunks,
+    split_by_chars,
 )
 
 
@@ -129,3 +130,39 @@ class TestSplitIntoChunks:
             all_words.extend(chunk.split())
         # No duplicates if no overlap
         assert len(all_words) == len(set(all_words))
+
+
+class TestSplitByChars:
+    def test_empty_returns_empty(self):
+        assert split_by_chars("") == []
+        assert split_by_chars("   ") == []
+
+    def test_short_text_single_chunk(self):
+        assert split_by_chars("hello world", max_chars=100) == ["hello world"]
+
+    def test_splits_on_line_boundaries(self):
+        text = "line one\nline two\nline three"
+        chunks = split_by_chars(text, max_chars=12)
+        # Each line ~9 chars incl newline; no chunk exceeds ~ max by much, lines intact.
+        for chunk in chunks:
+            for line in chunk.split("\n"):
+                assert line in ("line one", "line two", "line three")
+
+    def test_no_content_lost(self):
+        lines = [f"line-{i}" for i in range(50)]
+        text = "\n".join(lines)
+        chunks = split_by_chars(text, max_chars=30)
+        rejoined = "\n".join(chunks)
+        assert rejoined == text
+
+    def test_chinese_text_chunked(self):
+        # Chinese has no spaces; char-based splitting still divides it.
+        text = "\n".join(["这是一个测试句子用来验证分块功能"] * 10)
+        chunks = split_by_chars(text, max_chars=40)
+        assert len(chunks) > 1
+        assert "\n".join(chunks) == text
+
+    def test_long_single_line_becomes_own_chunk(self):
+        text = "x" * 5000
+        chunks = split_by_chars(text, max_chars=4000)
+        assert chunks == [text]

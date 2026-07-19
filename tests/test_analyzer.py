@@ -182,6 +182,40 @@ class TestClaudeCliError:
         assert code == 2
 
 
+class TestTranslateFlag:
+    def test_translate_called_and_result_analyzed(self):
+        with patch("sys.argv", ["analyzer.py", "https://youtu.be/dQw4w9WgXcQ", "--translate"]), \
+             patch("sys.stdout", new_callable=StringIO), \
+             patch("sys.stderr", new_callable=StringIO), \
+             patch("analyzer.extract_video_id", return_value="dQw4w9WgXcQ"), \
+             patch("analyzer.fetch_transcript", return_value=_RAW_DATA), \
+             patch("analyzer.clean_transcript", return_value="大家好"), \
+             patch("analyzer.translate_to_english", return_value="Hello everyone") as mock_tr, \
+             patch("analyzer.analyze_transcript", return_value=_MOCK_RESULT) as mock_an:
+            try:
+                analyzer.main()
+            except SystemExit:
+                pass
+            mock_tr.assert_called_once()
+            # The translated English text must be what gets analyzed.
+            assert mock_an.call_args[0][0] == "Hello everyone"
+
+    def test_no_translate_by_default(self):
+        with patch("sys.argv", ["analyzer.py", "https://youtu.be/dQw4w9WgXcQ"]), \
+             patch("sys.stdout", new_callable=StringIO), \
+             patch("sys.stderr", new_callable=StringIO), \
+             patch("analyzer.extract_video_id", return_value="dQw4w9WgXcQ"), \
+             patch("analyzer.fetch_transcript", return_value=_RAW_DATA), \
+             patch("analyzer.clean_transcript", return_value="Hello world"), \
+             patch("analyzer.translate_to_english") as mock_tr, \
+             patch("analyzer.analyze_transcript", return_value=_MOCK_RESULT):
+            try:
+                analyzer.main()
+            except SystemExit:
+                pass
+            mock_tr.assert_not_called()
+
+
 class TestTimestampsFlag:
     def test_timestamps_passed_to_clean(self):
         with patch("sys.argv", ["analyzer.py", "https://youtu.be/dQw4w9WgXcQ", "--timestamps"]), \

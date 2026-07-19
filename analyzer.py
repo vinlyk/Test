@@ -15,7 +15,7 @@ import argparse
 import json
 import sys
 
-from analysis import analyze_transcript
+from analysis import analyze_transcript, translate_to_english
 from transcript import TranscriptError, clean_transcript, extract_video_id, fetch_transcript
 
 
@@ -69,7 +69,11 @@ def main():
     )
     parser.add_argument(
         "--language", default="en",
-        help="Preferred transcript language code (default: en)"
+        help="Preferred transcript language code (default: en). Use 'zh' for Chinese."
+    )
+    parser.add_argument(
+        "--translate", action="store_true",
+        help="Translate the transcript to English before analysis (e.g. for Chinese videos)"
     )
 
     args = parser.parse_args()
@@ -88,6 +92,14 @@ def main():
     except TranscriptError as e:
         print(f"Transcript error: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Optionally translate to English (via CLI subscription)
+    try:
+        if args.translate:
+            transcript = translate_to_english(transcript, model=args.model)
+    except RuntimeError as e:
+        print(f"Translation error: {e}", file=sys.stderr)
+        sys.exit(2)
 
     # Analyze with Claude (via CLI subscription)
     try:
@@ -108,6 +120,7 @@ def main():
             "metadata": {
                 "model": result["model_used"],
                 "chunks_used": result["chunks_used"],
+                "translated": args.translate,
             },
         }
         if not args.no_transcript:

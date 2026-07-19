@@ -13,6 +13,7 @@ from analysis import (
     _analyze_single_pass,
     _parse_key_points,
     analyze_transcript,
+    translate_to_english,
 )
 
 
@@ -156,6 +157,45 @@ class TestAnalyzeTranscriptSinglePass:
 # ---------------------------------------------------------------------------
 # analyze_transcript — chunked
 # ---------------------------------------------------------------------------
+
+class TestTranslateToEnglish:
+    @patch("analysis.shutil.which", return_value="/usr/local/bin/claude")
+    @patch("analysis.subprocess.run")
+    def test_returns_translated_text(self, mock_run, mock_which):
+        mock_run.return_value = make_subprocess_mock(stdout="Hello everyone")
+        result = translate_to_english("大家好")
+        assert result == "Hello everyone"
+
+    @patch("analysis.shutil.which", return_value="/usr/local/bin/claude")
+    @patch("analysis.subprocess.run")
+    def test_empty_input_no_call(self, mock_run, mock_which):
+        result = translate_to_english("   ")
+        assert result == ""
+        assert mock_run.call_count == 0
+
+    @patch("analysis.shutil.which", return_value="/usr/local/bin/claude")
+    @patch("analysis.subprocess.run")
+    def test_transcript_in_prompt(self, mock_run, mock_which):
+        mock_run.return_value = make_subprocess_mock(stdout="translated")
+        translate_to_english("独特的中文内容")
+        prompt = mock_run.call_args[0][0][2]
+        assert "独特的中文内容" in prompt
+        assert "English" in prompt
+
+    @patch("analysis.shutil.which", return_value="/usr/local/bin/claude")
+    @patch("analysis.split_by_chars", return_value=["chunk A", "chunk B", "chunk C"])
+    @patch("analysis.subprocess.run")
+    def test_multiple_chunks_joined(self, mock_run, mock_split, mock_which):
+        mock_run.return_value = make_subprocess_mock(stdout="X")
+        result = translate_to_english("long text")
+        assert mock_run.call_count == 3
+        assert result == "X\nX\nX"
+
+    @patch("analysis.shutil.which", return_value=None)
+    def test_raises_when_claude_missing(self, mock_which):
+        with pytest.raises(RuntimeError, match="claude"):
+            translate_to_english("大家好")
+
 
 class TestAnalyzeTranscriptChunked:
     @patch("analysis.shutil.which", return_value="/usr/local/bin/claude")

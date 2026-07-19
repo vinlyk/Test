@@ -12,7 +12,7 @@ import webbrowser
 
 from flask import Flask, jsonify, render_template_string, request
 
-from analysis import analyze_transcript
+from analysis import analyze_transcript, translate_to_english
 from transcript import TranscriptError, clean_transcript, extract_video_id, fetch_transcript
 
 app = Flask(__name__)
@@ -207,6 +207,7 @@ HTML = """<!DOCTYPE html>
     <div class="options">
       <label><input type="checkbox" id="timestamps"> Include timestamps</label>
       <label><input type="checkbox" id="no_transcript"> Key points only (skip transcript)</label>
+      <label><input type="checkbox" id="translate"> Translate to English (e.g. Chinese videos)</label>
     </div>
 
     <button class="btn" id="analyzeBtn" onclick="analyze()">
@@ -244,6 +245,7 @@ async function analyze() {
   const language     = document.getElementById('language').value.trim() || 'en';
   const timestamps   = document.getElementById('timestamps').checked;
   const no_transcript = document.getElementById('no_transcript').checked;
+  const translate    = document.getElementById('translate').checked;
 
   if (!url) { showError('Please enter a YouTube URL.'); return; }
 
@@ -255,7 +257,7 @@ async function analyze() {
     const resp = await fetch('/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, language, timestamps, no_transcript })
+      body: JSON.stringify({ url, language, timestamps, no_transcript, translate })
     });
     const data = await resp.json();
     if (!resp.ok) { showError(data.error || 'An error occurred.'); return; }
@@ -271,7 +273,8 @@ function renderResults(data, noTranscript) {
   document.getElementById('meta').innerHTML =
     `<span>Video: ${data.video_id}</span>` +
     `<span>Model: ${data.metadata.model}</span>` +
-    `<span>Chunks: ${data.metadata.chunks_used}</span>`;
+    `<span>Chunks: ${data.metadata.chunks_used}</span>` +
+    (data.metadata.translated ? `<span>Translated to English</span>` : '');
 
   const list = document.getElementById('kpList');
   list.innerHTML = '';
@@ -341,6 +344,7 @@ def analyze():
     language      = (body.get("language") or "en").strip()
     timestamps    = bool(body.get("timestamps", False))
     no_transcript = bool(body.get("no_transcript", False))
+    translate     = bool(body.get("translate", False))
 
     if not url:
         return jsonify({"error": "URL is required."}), 400
@@ -357,6 +361,8 @@ def analyze():
         return jsonify({"error": str(e)}), 400
 
     try:
+        if translate:
+            transcript = translate_to_english(transcript)
         result = analyze_transcript(transcript)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 502
@@ -369,6 +375,7 @@ def analyze():
         "metadata": {
             "model": result["model_used"],
             "chunks_used": result["chunks_used"],
+            "translated": translate,
         },
     }
     if not no_transcript:

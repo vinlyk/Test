@@ -88,6 +88,29 @@ def extract_video_id(url: str) -> str:
     raise ValueError(f"Could not extract a YouTube video ID from: {url}")
 
 
+# Common regional/script variants, so selecting a base language finds real tracks.
+_LANG_VARIANTS = {
+    "zh": ["zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK", "zh-Hans-CN", "zh-Hant-TW"],
+    "en": ["en", "en-US", "en-GB", "en-orig"],
+    "pt": ["pt", "pt-BR", "pt-PT"],
+    "es": ["es", "es-ES", "es-419", "es-US"],
+    "fr": ["fr", "fr-FR", "fr-CA"],
+}
+
+
+def _expand_languages(languages: list) -> list:
+    """Expand each requested language to include its common regional variants."""
+    expanded = []
+    for lang in languages:
+        base = lang.split("-")[0].lower()
+        for variant in _LANG_VARIANTS.get(base, [lang]):
+            if variant not in expanded:
+                expanded.append(variant)
+        if lang not in expanded:
+            expanded.append(lang)
+    return expanded
+
+
 def fetch_transcript(video_id: str, languages: list = None) -> list:
     """
     Fetch raw transcript data for a YouTube video.
@@ -99,6 +122,7 @@ def fetch_transcript(video_id: str, languages: list = None) -> list:
     """
     if languages is None:
         languages = ["en"]
+    languages = _expand_languages(languages)
 
     api = YouTubeTranscriptApi()
     try:
@@ -107,12 +131,20 @@ def fetch_transcript(video_id: str, languages: list = None) -> list:
     except TranscriptsDisabled as e:
         raise TranscriptError("Transcripts are disabled for this video.") from e
     except NoTranscriptFound:
-        # Fall back: pick any available transcript
+        # Fall back: pick any available transcript (handles unmatched Chinese codes, etc.)
         try:
             transcript_list = api.list(video_id)
-            transcript = transcript_list.find_transcript([])
-            fetched = transcript.fetch()
-            return fetched.to_raw_data()
+            try:
+                fetched = transcript_list.find_transcript(languages).fetch()
+                return fetched.to_raw_data()
+            except Exception:
+                pass
+            for transcript in transcript_list:
+                try:
+                    return transcript.fetch().to_raw_data()
+                except Exception:
+                    continue
+            raise NoTranscriptFound(video_id, languages, {})
         except Exception:
             # Nothing via the primary library — try yt-dlp before giving up.
             raw = _fetch_via_ytdlp(video_id, languages)
