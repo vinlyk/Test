@@ -237,8 +237,9 @@ def _fetch_via_ytdlp(video_id: str, languages: list) -> list:
         return []
 
     url = f"https://www.youtube.com/watch?v={video_id}"
-    # Cookie sources to try, in order. None = no cookies (works from clean IPs).
-    cookie_attempts = [("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",), None]
+    # Try WITHOUT cookies first (works from clean IPs and avoids the macOS keychain
+    # prompt); only fall back to browser cookies if the anonymous request fails.
+    cookie_attempts = [None, ("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",)]
 
     for cookies in cookie_attempts:
         opts = {"skip_download": True, "quiet": True, "no_warnings": True}

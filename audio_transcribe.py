@@ -60,8 +60,10 @@ def _download_audio(video_id: str, dest_dir: str) -> str:
 
     url = f"https://www.youtube.com/watch?v={video_id}"
     outtmpl = os.path.join(dest_dir, "audio.%(ext)s")
-    # Browser cookies first (bypasses YouTube's datacenter/VPN IP blocks), then none.
-    cookie_attempts = [("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",), None]
+    # Try WITHOUT login first — works for public videos and avoids the macOS
+    # keychain prompt. Only fall back to browser cookies if the anonymous
+    # download fails (e.g. YouTube blocking a datacenter/VPN IP).
+    cookie_attempts = [None, ("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",)]
 
     last_err = None
     for cookies in cookie_attempts:
