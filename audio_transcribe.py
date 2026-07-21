@@ -23,6 +23,17 @@ def _log(message: str):
     print(f"  [analyzer] {message}", file=sys.stderr, flush=True)
 
 
+def _cookie_attempts() -> list:
+    """
+    Cookie sources for yt-dlp. Anonymous only ([None]) by default so macOS never
+    prompts for keychain access. Opt into browser logins (for IP-blocked cases)
+    with YTDLP_USE_BROWSER_COOKIES=1.
+    """
+    if os.environ.get("YTDLP_USE_BROWSER_COOKIES", "").strip().lower() in ("1", "true", "yes"):
+        return [None, ("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",)]
+    return [None]
+
+
 # Map friendly/incorrect codes to the language hints Whisper understands.
 _LANG_HINTS = {"cn": "zh", "chinese": "zh", "zho": "zh", "english": "en"}
 
@@ -60,10 +71,11 @@ def _download_audio(video_id: str, dest_dir: str) -> str:
 
     url = f"https://www.youtube.com/watch?v={video_id}"
     outtmpl = os.path.join(dest_dir, "audio.%(ext)s")
-    # Try WITHOUT login first — works for public videos and avoids the macOS
-    # keychain prompt. Only fall back to browser cookies if the anonymous
-    # download fails (e.g. YouTube blocking a datacenter/VPN IP).
-    cookie_attempts = [None, ("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",)]
+    # Anonymous download only, by default — this never touches the browser keychain,
+    # so macOS won't prompt for a password. Public videos download fine this way.
+    # Set YTDLP_USE_BROWSER_COOKIES=1 to also try browser logins (only needed if
+    # YouTube blocks your IP, e.g. on a VPN); that path may trigger a keychain prompt.
+    cookie_attempts = _cookie_attempts()
 
     last_err = None
     for cookies in cookie_attempts:

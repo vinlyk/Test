@@ -225,11 +225,23 @@ def _captions_from_info(info: dict, languages: list) -> list:
     return []
 
 
+def _cookie_attempts() -> list:
+    """
+    Cookie sources for yt-dlp. Anonymous only ([None]) by default so macOS never
+    prompts for keychain access. Opt into browser logins (for IP-blocked cases)
+    with YTDLP_USE_BROWSER_COOKIES=1.
+    """
+    import os
+    if os.environ.get("YTDLP_USE_BROWSER_COOKIES", "").strip().lower() in ("1", "true", "yes"):
+        return [None, ("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",)]
+    return [None]
+
+
 def _fetch_via_ytdlp(video_id: str, languages: list) -> list:
     """
-    Fallback transcript fetch using yt-dlp. Tries the browser's YouTube login
-    (cookies) first — this bypasses the anonymous-IP blocking YouTube applies to
-    datacenter/VPN addresses. Returns [] if yt-dlp is unavailable or finds nothing.
+    Fallback transcript fetch using yt-dlp. Anonymous by default (no keychain
+    prompt); set YTDLP_USE_BROWSER_COOKIES=1 to also try the browser's YouTube
+    login for IP-blocked cases. Returns [] if yt-dlp is unavailable or finds nothing.
     """
     try:
         import yt_dlp
@@ -237,9 +249,7 @@ def _fetch_via_ytdlp(video_id: str, languages: list) -> list:
         return []
 
     url = f"https://www.youtube.com/watch?v={video_id}"
-    # Try WITHOUT cookies first (works from clean IPs and avoids the macOS keychain
-    # prompt); only fall back to browser cookies if the anonymous request fails.
-    cookie_attempts = [None, ("chrome",), ("safari",), ("edge",), ("brave",), ("firefox",)]
+    cookie_attempts = _cookie_attempts()
 
     for cookies in cookie_attempts:
         opts = {"skip_download": True, "quiet": True, "no_warnings": True}
