@@ -10,8 +10,9 @@ import sys
 import tempfile
 
 # Model size trades speed vs accuracy: tiny/base/small/medium/large-v3.
-# Larger = better (esp. for Chinese) but slower. Override with WHISPER_MODEL.
-DEFAULT_WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
+# Default "base" is fast and small (~145MB) — good for a first run on a laptop CPU.
+# For better accuracy (especially Chinese), set WHISPER_MODEL=small or medium.
+DEFAULT_WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "base")
 
 
 class AudioTranscriptionError(Exception):
@@ -120,19 +121,42 @@ def transcribe_audio(video_id: str, languages: list = None, model_size: str = No
         _log("Captions unavailable — downloading audio for speech-to-text...")
         audio_path = _download_audio(video_id, tmp)
 
-        _log(f"Transcribing audio with Whisper '{model_size}' (this can take several minutes)...")
         try:
+            _log(f"Loading Whisper model '{model_size}' "
+                 "(first run downloads it — can take a few minutes on slow connections)...")
             model = WhisperModel(
                 model_size,
                 device=os.environ.get("WHISPER_DEVICE", "cpu"),
                 compute_type=os.environ.get("WHISPER_COMPUTE_TYPE", "int8"),
             )
-            segments, _info = model.transcribe(audio_path, language=lang_hint)
-            raw = _segments_to_raw(segments)
+            segments, info = model.transcribe(audio_path, language=lang_hint)
+            total = float(getattr(info, "duration", 0) or 0)
+            _log(f"Transcribing {int(total)}s of audio... (progress below)")
+            raw = _segments_to_raw_with_progress(segments, total)
         except Exception as e:
             raise AudioTranscriptionError(f"Whisper transcription failed: {e}") from e
 
     if not raw:
         raise AudioTranscriptionError("Whisper produced no text from the audio.")
     _log(f"Speech-to-text complete: {len(raw)} segments.")
+    return raw
+
+
+def _segments_to_raw_with_progress(segments, total_seconds: float, step: float = 30.0) -> list:
+    """Like _segments_to_raw, but logs progress every ~step seconds of audio."""
+    raw = []
+    next_mark = step
+    for seg in segments:
+        text = (getattr(seg, "text", "") or "").strip()
+        end = float(getattr(seg, "end", 0) or 0)
+        if text:
+            start = float(getattr(seg, "start", 0) or 0)
+            raw.append({"text": text, "start": start, "duration": max(0.0, end - start)})
+        if end >= next_mark:
+            if total_seconds:
+                pct = min(100, int(end / total_seconds * 100))
+                _log(f"  ...transcribed {int(end)}s / {int(total_seconds)}s ({pct}%)")
+            else:
+                _log(f"  ...transcribed {int(end)}s")
+            next_mark = end + step
     return raw
