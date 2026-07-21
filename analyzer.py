@@ -16,6 +16,7 @@ import json
 import sys
 
 from analysis import analyze_transcript, translate_to_english
+from audio_transcribe import AudioTranscriptionError, transcribe_audio
 from transcript import TranscriptError, clean_transcript, extract_video_id, fetch_transcript
 
 
@@ -85,13 +86,19 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Fetch and clean transcript
+    # Fetch and clean transcript (fall back to audio speech-to-text if no captions)
     try:
         raw = fetch_transcript(video_id, languages=[args.language])
         transcript = clean_transcript(raw, include_timestamps=args.timestamps)
     except TranscriptError as e:
         print(f"Transcript error: {e}", file=sys.stderr)
-        sys.exit(1)
+        print("Captions unavailable — attempting audio speech-to-text...", file=sys.stderr)
+        try:
+            raw = transcribe_audio(video_id, languages=[args.language])
+            transcript = clean_transcript(raw, include_timestamps=args.timestamps)
+        except AudioTranscriptionError as ae:
+            print(f"Audio fallback failed: {ae}", file=sys.stderr)
+            sys.exit(1)
 
     # Optionally translate to English (via CLI subscription)
     try:

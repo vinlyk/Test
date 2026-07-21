@@ -165,6 +165,41 @@ class TestTranscriptError:
             assert "No captions" in mock_err.getvalue()
 
 
+class TestAudioFallback:
+    def test_falls_back_to_audio_when_captions_disabled(self):
+        with patch("sys.argv", ["analyzer.py", "https://youtu.be/dQw4w9WgXcQ"]), \
+             patch("sys.stdout", new_callable=StringIO) as out, \
+             patch("sys.stderr", new_callable=StringIO), \
+             patch("analyzer.extract_video_id", return_value="dQw4w9WgXcQ"), \
+             patch("analyzer.fetch_transcript", side_effect=TranscriptError("Transcripts are disabled")), \
+             patch("analyzer.transcribe_audio", return_value=_RAW_DATA) as mock_audio, \
+             patch("analyzer.clean_transcript", return_value="Hello world"), \
+             patch("analyzer.analyze_transcript", return_value=_MOCK_RESULT):
+            try:
+                analyzer.main()
+                code = 0
+            except SystemExit as e:
+                code = e.code
+        mock_audio.assert_called_once()
+        assert code == 0
+        assert "Test point" in out.getvalue()
+
+    def test_exits_1_when_audio_also_fails(self):
+        from audio_transcribe import AudioTranscriptionError
+        with patch("sys.argv", ["analyzer.py", "https://youtu.be/dQw4w9WgXcQ"]), \
+             patch("sys.stdout", new_callable=StringIO), \
+             patch("sys.stderr", new_callable=StringIO), \
+             patch("analyzer.extract_video_id", return_value="dQw4w9WgXcQ"), \
+             patch("analyzer.fetch_transcript", side_effect=TranscriptError("disabled")), \
+             patch("analyzer.transcribe_audio", side_effect=AudioTranscriptionError("no whisper")):
+            try:
+                analyzer.main()
+                code = 0
+            except SystemExit as e:
+                code = e.code
+        assert code == 1
+
+
 class TestClaudeCliError:
     def test_exits_2_when_claude_not_found(self):
         with patch("sys.argv", ["analyzer.py", "https://youtu.be/dQw4w9WgXcQ"]), \

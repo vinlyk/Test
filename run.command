@@ -38,6 +38,13 @@ python3 -m pip install -r requirements.txt -q --break-system-packages 2>/dev/nul
   || echo "  (pip reported an issue — the app will still try to start)"
 echo "  Dependencies ready."
 
+# Optional speech-to-text engine (for videos with captions disabled). Best-effort.
+echo ""
+echo "Installing optional speech-to-text engine (for caption-less videos)..."
+python3 -m pip install -r requirements-audio.txt -q --break-system-packages 2>/dev/null \
+  || python3 -m pip install -r requirements-audio.txt -q \
+  || echo "  (skipped — caption-less videos won't use speech-to-text until this installs)"
+
 # --- Launch ---
 echo ""
 echo "Starting the web server..."

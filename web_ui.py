@@ -13,6 +13,7 @@ import webbrowser
 from flask import Flask, jsonify, render_template_string, request
 
 from analysis import analyze_transcript, translate_to_english
+from audio_transcribe import AudioTranscriptionError, transcribe_audio
 from transcript import TranscriptError, clean_transcript, extract_video_id, fetch_transcript
 
 app = Flask(__name__)
@@ -288,6 +289,7 @@ function renderResults(data, noTranscript) {
     `<span>Video: ${data.video_id}</span>` +
     `<span>Model: ${data.metadata.model}</span>` +
     `<span>Chunks: ${data.metadata.chunks_used}</span>` +
+    (data.metadata.source === 'speech-to-text' ? `<span>Source: speech-to-text</span>` : '') +
     (data.metadata.translated ? `<span>Translated to English</span>` : '');
 
   const list = document.getElementById('kpList');
@@ -369,13 +371,22 @@ def analyze():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
+    source = "captions"
     try:
         print(f"\n  [analyzer] Fetching transcript for {video_id} ...", flush=True)
         raw = fetch_transcript(video_id, languages=[language])
         transcript = clean_transcript(raw, include_timestamps=timestamps)
         print(f"  [analyzer] Transcript fetched ({len(transcript)} chars).", flush=True)
-    except TranscriptError as e:
-        return jsonify({"error": str(e)}), 400
+    except TranscriptError as caption_err:
+        # No captions available — fall back to downloading audio and transcribing it.
+        try:
+            raw = transcribe_audio(video_id, languages=[language])
+            transcript = clean_transcript(raw, include_timestamps=timestamps)
+            source = "speech-to-text"
+        except AudioTranscriptionError as audio_err:
+            return jsonify({
+                "error": f"{caption_err}  Audio fallback also failed: {audio_err}"
+            }), 400
 
     try:
         if translate:
@@ -394,6 +405,7 @@ def analyze():
             "model": result["model_used"],
             "chunks_used": result["chunks_used"],
             "translated": translate,
+            "source": source,
         },
     }
     if not no_transcript:

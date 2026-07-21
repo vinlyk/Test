@@ -1,0 +1,4 @@
+# Optional: only needed for the speech-to-text fallback on caption-disabled videos.
+# The launchers install this best-effort; the base app works without it.
+# First use downloads a Whisper model (~500MB for the default "small").
+faster-whisper>=1.0.0
