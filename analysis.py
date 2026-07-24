@@ -2,13 +2,19 @@
 Claude analysis via the `claude` CLI (uses your Claude subscription — no API key needed).
 """
 import json
+import os
 import shutil
 import subprocess
 import sys
+import time
 
 from chunker import needs_chunking, split_by_chars, split_into_chunks
 
 DEFAULT_MODEL = None  # None = use CLI default (matches your subscription tier)
+
+# Overridable via env for slower machines / long transcripts.
+CLAUDE_CLI_TIMEOUT = int(os.environ.get("CLAUDE_CLI_TIMEOUT", "180"))
+CLAUDE_CLI_RETRIES = int(os.environ.get("CLAUDE_CLI_RETRIES", "2"))
 
 
 def _log(message: str):
@@ -41,21 +47,33 @@ def _check_claude_cli():
 
 
 def _call_claude(prompt: str, model: str = None) -> str:
-    """Call `claude -p <prompt>` and return the response text."""
+    """Call `claude -p <prompt>` and return the response text, retrying on timeout."""
     cmd = ["claude", "-p", prompt]
     if model:
         cmd += ["--model", model]
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-    except FileNotFoundError:
-        raise RuntimeError("`claude` CLI not found. Install Claude Code and log in.")
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("Claude CLI timed out after 120 seconds.")
+
+    last_timeout = None
+    for attempt in range(1, CLAUDE_CLI_RETRIES + 2):  # +1 for the initial try
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=CLAUDE_CLI_TIMEOUT,
+            )
+            break
+        except FileNotFoundError:
+            raise RuntimeError("`claude` CLI not found. Install Claude Code and log in.")
+        except subprocess.TimeoutExpired:
+            last_timeout = True
+            if attempt <= CLAUDE_CLI_RETRIES:
+                _log(f"claude CLI call timed out (attempt {attempt}), retrying...")
+                time.sleep(2)
+                continue
+            raise RuntimeError(
+                f"Claude CLI timed out after {CLAUDE_CLI_TIMEOUT}s "
+                f"(tried {CLAUDE_CLI_RETRIES + 1} times)."
+            )
 
     if result.returncode != 0:
         raise RuntimeError(f"claude CLI error: {result.stderr.strip() or 'unknown error'}")

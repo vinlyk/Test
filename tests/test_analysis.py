@@ -7,10 +7,14 @@ import json
 import pytest
 from unittest.mock import MagicMock, patch
 
+import subprocess
+
 from analysis import (
     DEFAULT_MODEL,
+    CLAUDE_CLI_RETRIES,
     _analyze_chunked,
     _analyze_single_pass,
+    _call_claude,
     _parse_key_points,
     analyze_transcript,
     translate_to_english,
@@ -75,6 +79,34 @@ class TestParseKeyPoints:
 # ---------------------------------------------------------------------------
 # _analyze_single_pass
 # ---------------------------------------------------------------------------
+
+class TestCallClaudeRetry:
+    @patch("analysis.time.sleep")
+    @patch("analysis.subprocess.run")
+    def test_retries_on_timeout_then_succeeds(self, mock_run, mock_sleep):
+        mock_run.side_effect = [
+            subprocess.TimeoutExpired(cmd="claude", timeout=180),
+            make_subprocess_mock(stdout="ok"),
+        ]
+        result = _call_claude("hello")
+        assert result == "ok"
+        assert mock_run.call_count == 2
+
+    @patch("analysis.time.sleep")
+    @patch("analysis.subprocess.run")
+    def test_raises_after_exhausting_retries(self, mock_run, mock_sleep):
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="claude", timeout=180)
+        with pytest.raises(RuntimeError, match="timed out"):
+            _call_claude("hello")
+        assert mock_run.call_count == CLAUDE_CLI_RETRIES + 1
+
+    @patch("analysis.subprocess.run")
+    def test_no_retry_needed_on_first_success(self, mock_run):
+        mock_run.return_value = make_subprocess_mock(stdout="fine")
+        result = _call_claude("hello")
+        assert result == "fine"
+        assert mock_run.call_count == 1
+
 
 class TestAnalyzeSinglePass:
     @patch("analysis.subprocess.run")
