@@ -54,20 +54,27 @@ def _call_claude(prompt: str, model: str = None) -> str:
 
     last_timeout = None
     for attempt in range(1, CLAUDE_CLI_RETRIES + 2):  # +1 for the initial try
+        start = time.time()
         try:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=CLAUDE_CLI_TIMEOUT,
+                # Explicitly non-interactive: if `claude` ever waits on a prompt
+                # (e.g. a first-run confirmation) it fails fast instead of hanging
+                # silently until the timeout.
+                stdin=subprocess.DEVNULL,
             )
+            _log(f"claude CLI responded in {time.time() - start:.1f}s.")
             break
         except FileNotFoundError:
             raise RuntimeError("`claude` CLI not found. Install Claude Code and log in.")
         except subprocess.TimeoutExpired:
             last_timeout = True
+            _log(f"claude CLI call did not respond within {CLAUDE_CLI_TIMEOUT}s (attempt {attempt}).")
             if attempt <= CLAUDE_CLI_RETRIES:
-                _log(f"claude CLI call timed out (attempt {attempt}), retrying...")
+                _log("Retrying...")
                 time.sleep(2)
                 continue
             raise RuntimeError(
