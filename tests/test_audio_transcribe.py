@@ -61,6 +61,16 @@ class TestLanguageHint:
     def test_empty_returns_none(self):
         assert _language_hint([]) is None
 
+    def test_invalid_code_falls_back_to_none(self):
+        # "enzh" is not a real Whisper code — should auto-detect, not raise.
+        assert _language_hint(["enzh"]) is None
+
+    def test_garbage_code_falls_back_to_none(self):
+        assert _language_hint(["xx-yy-zz"]) is None
+
+    def test_valid_variant_still_works_after_typo_check(self):
+        assert _language_hint(["pt-BR"]) == "pt"
+
 
 class TestTranscribeAudio:
     def test_raises_when_faster_whisper_missing(self):

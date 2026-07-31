@@ -38,13 +38,35 @@ def _cookie_attempts() -> list:
 # Map friendly/incorrect codes to the language hints Whisper understands.
 _LANG_HINTS = {"cn": "zh", "chinese": "zh", "zho": "zh", "english": "en"}
 
+# Codes Whisper actually accepts. An unrecognized code (e.g. a typo like "enzh")
+# falls back to auto-detection rather than raising an error.
+_WHISPER_LANGUAGES = {
+    "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs",
+    "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu",
+    "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka",
+    "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml",
+    "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt",
+    "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw",
+    "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo",
+    "zh", "yue",
+}
+
 
 def _language_hint(languages) -> str:
-    """Turn the requested language list into a single Whisper language hint (or None)."""
+    """
+    Turn the requested language list into a single Whisper language hint, or None
+    to let Whisper auto-detect. Unrecognized codes fall back to auto-detect instead
+    of raising an error.
+    """
     if not languages:
         return None
     base = languages[0].split("-")[0].lower()
-    return _LANG_HINTS.get(base, base or None)
+    hint = _LANG_HINTS.get(base, base or None)
+    if hint not in _WHISPER_LANGUAGES:
+        if hint:
+            _log(f"'{hint}' isn't a language Whisper recognizes — auto-detecting instead.")
+        return None
+    return hint
 
 
 def _segments_to_raw(segments) -> list:
