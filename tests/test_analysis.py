@@ -107,6 +107,31 @@ class TestCallClaudeRetry:
         assert result == "fine"
         assert mock_run.call_count == 1
 
+    @patch("analysis.subprocess.run")
+    def test_error_uses_stderr_when_present(self, mock_run):
+        mock = make_subprocess_mock(stdout="", returncode=1)
+        mock.stderr = "not logged in"
+        mock_run.return_value = mock
+        with pytest.raises(RuntimeError, match="not logged in"):
+            _call_claude("hello")
+
+    @patch("analysis.subprocess.run")
+    def test_error_falls_back_to_stdout(self, mock_run):
+        # The CLI sometimes reports failures on stdout with an empty stderr.
+        mock = make_subprocess_mock(stdout="Usage limit reached", returncode=1)
+        mock.stderr = ""
+        mock_run.return_value = mock
+        with pytest.raises(RuntimeError, match="Usage limit reached"):
+            _call_claude("hello")
+
+    @patch("analysis.subprocess.run")
+    def test_error_reports_exit_code_when_no_output(self, mock_run):
+        mock = make_subprocess_mock(stdout="", returncode=3)
+        mock.stderr = ""
+        mock_run.return_value = mock
+        with pytest.raises(RuntimeError, match="exit code 3"):
+            _call_claude("hello")
+
 
 class TestAnalyzeSinglePass:
     @patch("analysis.subprocess.run")

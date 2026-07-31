@@ -83,7 +83,13 @@ def _call_claude(prompt: str, model: str = None) -> str:
             )
 
     if result.returncode != 0:
-        err = result.stderr.strip() or "unknown error"
+        # The CLI sometimes reports failures (usage limits, auth problems) on
+        # stdout rather than stderr, so fall back to stdout before giving up.
+        err = (
+            result.stderr.strip()
+            or result.stdout.strip()
+            or f"no output (exit code {result.returncode})"
+        )
         _log(f"claude CLI exited with an error (code {result.returncode}): {err}")
         raise RuntimeError(f"claude CLI error: {err}")
 
