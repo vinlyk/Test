@@ -253,6 +253,30 @@ class TestTranslateToEnglish:
         with pytest.raises(RuntimeError, match="claude"):
             translate_to_english("大家好")
 
+    @patch("analysis.shutil.which", return_value="/usr/local/bin/claude")
+    @patch("analysis.split_by_chars", return_value=["chunk A", "chunk B", "chunk C"])
+    @patch("analysis.subprocess.run")
+    def test_partial_failure_keeps_completed_work(self, mock_run, mock_split, mock_which):
+        # Second chunk fails; the other two must still be translated and returned.
+        ok = make_subprocess_mock(stdout="TRANSLATED")
+        bad = make_subprocess_mock(stdout="", returncode=1)
+        bad.stderr = "usage limit reached"
+        mock_run.side_effect = [ok, bad, ok]
+
+        result = translate_to_english("anything")
+
+        # Completed work is preserved, and the failed section falls back to original.
+        assert result == "TRANSLATED\nchunk B\nTRANSLATED"
+
+    @patch("analysis.shutil.which", return_value="/usr/local/bin/claude")
+    @patch("analysis.split_by_chars", return_value=["only chunk"])
+    @patch("analysis.subprocess.run")
+    def test_total_failure_returns_original_text(self, mock_run, mock_split, mock_which):
+        bad = make_subprocess_mock(stdout="", returncode=1)
+        bad.stderr = "usage limit reached"
+        mock_run.return_value = bad
+        assert translate_to_english("anything") == "only chunk"
+
 
 class TestAnalyzeTranscriptChunked:
     @patch("analysis.shutil.which", return_value="/usr/local/bin/claude")

@@ -2,6 +2,7 @@
 Transcript chunking utilities.
 No API calls — uses word-count heuristics only.
 """
+import os
 
 WORDS_PER_TOKEN = 0.75
 SINGLE_PASS_WORD_THRESHOLD = 100_000
@@ -9,7 +10,9 @@ CHUNK_WORD_COUNT = 8_000
 
 # Translation is chunked by characters, not words: languages like Chinese have
 # no spaces, so word counts wildly underestimate their real length.
-TRANSLATE_CHUNK_CHARS = 4_000
+# Larger chunks mean far fewer sequential CLI calls, which matters a lot on long
+# videos — each call costs ~60s and counts against subscription usage limits.
+TRANSLATE_CHUNK_CHARS = int(os.environ.get("TRANSLATE_CHUNK_CHARS", "12000"))
 
 
 def estimate_tokens(text: str) -> int:

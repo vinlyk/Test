@@ -31,6 +31,7 @@ _TRANSLATE_INSTRUCTION = (
 
 _INSTRUCTION = (
     "Analyze this YouTube transcript and extract key points. "
+    "Write the key points in English even if the transcript is in another language. "
     "Output ONLY a valid JSON array. "
     "Each item: {\"point\": \"concise statement\", \"importance\": \"high|medium|low\"}. "
     "Maximum 10 items. No preamble, no explanation, no markdown fences. "
@@ -176,10 +177,21 @@ def translate_to_english(text: str, model: str = DEFAULT_MODEL) -> str:
 
     chunks = split_by_chars(text)
     translated_parts = []
+    failed = 0
     for i, chunk in enumerate(chunks, 1):
         _log(f"Translating to English (part {i}/{len(chunks)})...")
-        response = _call_claude(_TRANSLATE_INSTRUCTION + chunk, model=model)
-        translated_parts.append(response.strip())
+        try:
+            response = _call_claude(_TRANSLATE_INSTRUCTION + chunk, model=model)
+            translated_parts.append(response.strip())
+        except RuntimeError as e:
+            # Don't discard the work already done (often many minutes of it).
+            # Keep the original text for this section and carry on.
+            failed += 1
+            _log(f"Part {i} could not be translated ({e}). Keeping original text for it.")
+            translated_parts.append(chunk)
+
+    if failed:
+        _log(f"WARNING: {failed} of {len(chunks)} sections were left untranslated.")
 
     return "\n".join(translated_parts)
 
