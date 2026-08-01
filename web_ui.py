@@ -126,6 +126,18 @@ HTML = """<!DOCTYPE html>
     white-space: pre-wrap;
   }
 
+  .cost-hint {
+    display: none;
+    background: #2a2416;
+    border: 1px solid #6b5a1f;
+    border-radius: 8px;
+    color: #fcd34d;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    padding: 0.7rem 0.9rem;
+    margin-top: 0.9rem;
+  }
+
   .loading-note {
     display: none;
     color: #94a3b8;
@@ -217,8 +229,15 @@ HTML = """<!DOCTYPE html>
     <div class="options">
       <label><input type="checkbox" id="timestamps"> Include timestamps</label>
       <label><input type="checkbox" id="no_transcript"> Key points only (skip transcript)</label>
-      <label><input type="checkbox" id="translate"> Translate to English (e.g. Chinese videos)</label>
+      <label><input type="checkbox" id="translate" onchange="updateCostHint()"> Translate to English (e.g. Chinese videos)</label>
     </div>
+
+    <p class="cost-hint" id="costHint">
+      Translation sends the whole transcript through Claude in sequence — a 90-minute
+      video needs roughly 5–15 calls instead of 1, so it is much slower and uses far
+      more of your subscription's usage limit. Key points come out in English either
+      way, so leave this off unless you need the full transcript in English.
+    </p>
 
     <button class="btn" id="analyzeBtn" onclick="analyze()">
       <span id="btnText">Analyze</span>
@@ -323,6 +342,11 @@ function switchTab(name, btn) {
 
 function copyTranscript() {
   navigator.clipboard.writeText(document.getElementById('transcriptBox').textContent);
+}
+
+function updateCostHint() {
+  const on = document.getElementById('translate').checked;
+  document.getElementById('costHint').style.display = on ? 'block' : 'none';
 }
 
 function setLoading(on) {

@@ -176,6 +176,16 @@ def translate_to_english(text: str, model: str = DEFAULT_MODEL) -> str:
         return ""
 
     chunks = split_by_chars(text)
+
+    # Give an up-front estimate: translation is by far the most expensive step,
+    # and on long videos it can exhaust a subscription's usage limit.
+    if len(chunks) > 1:
+        _log(
+            f"Translation will make {len(chunks)} sequential claude calls "
+            f"(~{len(chunks)} min at typical speed). Key points alone would take 1 — "
+            "uncheck 'Translate to English' to skip this."
+        )
+
     translated_parts = []
     failed = 0
     for i, chunk in enumerate(chunks, 1):
